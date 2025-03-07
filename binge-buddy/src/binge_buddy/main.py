@@ -8,5 +8,6 @@ if __name__ == "__main__":
     for audio_file in os.listdir("audio"):
         result = agent.transcribe(f"audio/{audio_file}")
         print(result)
+
         # Delete the audio file after transcribing
-        # os.remove(f"audio/{audio_file}")
+        os.remove(f"audio/{audio_file}")

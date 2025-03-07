@@ -34,12 +34,24 @@
             cursor: pointer;
             font-size: 16px;
         }
+        .input-container {
+            margin-top: 20px;
+        }
+        .input-container input {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+        }
     </style>
 </head>
 <body>
     <h1>Voice Recorder</h1>
     <button id="recordBtn" class="record-btn">🎤</button>
     <div class="audio-container" id="audioContainer"></div>
+    <div class="input-container">
+        <label for="fileName">Enter a name for your audio file:</label>
+        <input type="text" id="fileName" placeholder="My Audio File">
+    </div>
     <button id="uploadBtn" class="upload-btn" style="display:none;">Upload Audio</button>
 
     <script>
@@ -78,8 +90,9 @@
         });
 
         document.getElementById("uploadBtn").addEventListener("click", async function() {
+            const fileName = document.getElementById("fileName").value || "recorded_audio"; // Default name if not provided
             const formData = new FormData();
-            formData.append("audio", recordedAudioBlob, "recorded_audio.wav");
+            formData.append("audio", recordedAudioBlob, `${fileName}.wav`);
 
             const response = await fetch("/upload", {
                 method: "POST",

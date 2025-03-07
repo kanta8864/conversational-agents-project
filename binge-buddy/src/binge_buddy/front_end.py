@@ -1,4 +1,5 @@
 import flask
+import os
 
 # Set up the Flask app
 app = flask.Flask(__name__)
@@ -15,7 +16,9 @@ def upload_audio():
         return "No audio file uploaded", 400
     else:
         audio_file = flask.request.files['audio']
-        audio_file.save("audio/recorded_audio.wav")
+        filename = audio_file.filename
+        # Save the audio file with the custom name provided by the user
+        audio_file.save(os.path.join("audio", filename))
         return "Audio uploaded successfully", 200
 
 
