@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Recorder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+        .record-btn {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .recording {
+            background-color: darkred;
+        }
+        .audio-container {
+            margin-top: 20px;
+        }
+        .upload-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Voice Recorder</h1>
+    <button id="recordBtn" class="record-btn">🎤</button>
+    <div class="audio-container" id="audioContainer"></div>
+    <button id="uploadBtn" class="upload-btn" style="display:none;">Upload Audio</button>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordedAudioBlob;
+
+        document.getElementById("recordBtn").addEventListener("click", async function() {
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+                    const audioUrl = URL.createObjectURL(recordedAudioBlob);
+                    const audio = document.createElement("audio");
+                    audio.controls = true;
+                    audio.src = audioUrl;
+                    document.getElementById("audioContainer").appendChild(audio);
+                    audioChunks = [];
+                    document.getElementById("uploadBtn").style.display = 'block'; // Show upload button
+                };
+
+                mediaRecorder.start();
+                this.classList.add("recording");
+            } else {
+                mediaRecorder.stop();
+                this.classList.remove("recording");
+            }
+        });
+
+        document.getElementById("uploadBtn").addEventListener("click", async function() {
+            const formData = new FormData();
+            formData.append("audio", recordedAudioBlob, "recorded_audio.wav");
+
+            const response = await fetch("/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            if (response.ok) {
+                alert("Audio uploaded successfully!");
+            } else {
+                alert("Failed to upload audio.");
+            }
+        });
+    </script>
+</body>
+</html>
