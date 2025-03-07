@@ -8,5 +8,20 @@
 2. Record audio files by clicking on the microphone button.
 3. Give the audio file a name.
 4. Upload the audio file by clicking on the green upload button.
+5. Install ffmpeg on your laptop
+	# on Ubuntu or Debian
+	sudo apt update && sudo apt install ffmpeg
+
+	# on Arch Linux
+	sudo pacman -S ffmpeg
+
+	# on MacOS using Homebrew (https://brew.sh/)
+	brew install ffmpeg
+
+	# on Windows using Chocolatey (https://chocolatey.org/)
+	choco install ffmpeg
+
+	# on Windows using Scoop (https://scoop.sh/)
+	scoop install ffmpeg
 5. Run main.py script.
 6. See beautiful transcription of your audio file in the console.
