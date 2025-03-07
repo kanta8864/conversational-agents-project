@@ -5,7 +5,7 @@ from langchain.prompts import (
     MessagesPlaceholder,
 )
 from langchain.schema import SystemMessage, HumanMessage
-from ollamaLLM import OllamaLLM
+from ollama import OllamaLLM
 
 system_prompt_initial = """
 Your job is to assess a brief chat history in order to determine if the conversation contains any details about a user's watching habits regarding streaming content. 
