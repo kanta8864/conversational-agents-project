@@ -16,10 +16,21 @@ You play the critical role of assessing the message to determine if it contains 
 
 You are only interested in the following categories of information:
 
-1. The family's food allergies (e.g. a dairy or soy allergy)
-2. Foods the family likes (e.g. likes pasta)
-3. Foods the family dislikes (e.g. doesn't eat mussels)
-4. Attributes about the family that may impact weekly meal planning (e.g. lives in Austin; has a husband and 2 children; has a garden; likes big lunches; etc.)
+1. The user's likes (e.g., "I love action movies!")
+2. The user's dislikes (e.g., "I hate horror movies!")
+3. The user's favorite shows or movies (e.g., "My favorite show is Game of Thrones!")
+4. The user's desire to watch a show or movie (e.g., "I really want to watch the new Marvel movie!")
+5. The user's preferred streaming platform (e.g., "I watch everything on Netflix!")
+6. The user's preferred genre (e.g., "I love romantic comedies!")
+7. The user's disinterest in a show or movie (e.g., "I'm not interested in watching that new series.")
+8. The user's personality traits that may influence their watching habits (e.g., "I'm a huge fan of sci-fi because I love imagining the future.")
+9. The user's watching habits (e.g., "I watch a movie every night before bed.")
+10. The frequency of the user's watching habits (e.g., "I watch TV shows every weekend.")
+11. The user's avoidance of certain types of content (e.g., "I avoid watching horror movies because they scare me.")
+12. The user's preferred tone of content (e.g., "I prefer light-hearted comedies over dark dramas.")
+13. The user's preference for certain types of characters (e.g., "I love shows with strong female leads.")
+14. The user's preferred length of shows or movies (e.g., "I prefer short episodes that I can watch during my lunch break.")
+15. The user's tendency to rewatch shows or movies (e.g., "I rewatch my favorite movie every year.")
 
 When you receive a message, you perform a sequence of steps consisting of:
 
@@ -30,6 +41,9 @@ You should ONLY RESPOND WITH TRUE OR FALSE. Absolutely no other information shou
 
 Take a deep breath, think step by step, and then analyze the following message:
 """
+
+# Not sure if we need this as a category:
+# 16. The user's awareness of the popularity of a show or movie (e.g., "I know that show is really popular, but I haven't watched it yet.")
 
 # Get the prompt to use - you can modify this!
 prompt = ChatPromptTemplate.from_messages(

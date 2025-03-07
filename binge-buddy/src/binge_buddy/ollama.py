@@ -1,7 +1,7 @@
 # Create custom LLM class
-from typing import Any, List, Mapping, Optional
-
 import requests
+
+from typing import Any, List, Mapping, Optional
 from langchain.llms.base import LLM
 
 
