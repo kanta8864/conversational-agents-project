@@ -14,6 +14,8 @@ dependencies = [
     "openai-whisper (>=20240930,<20240931)",
     "setuptools-rust (>=1.10.2,<2.0.0)",
     "flask (>=3.1.0,<4.0.0)",
+    "langgraph-prebuilt (>=0.1.2,<0.2.0)",
+    "langgraph (>=0.3.5,<0.4.0)",
 ]
 
 [tool.poetry]
