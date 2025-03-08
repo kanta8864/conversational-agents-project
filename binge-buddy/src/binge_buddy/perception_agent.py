@@ -1,5 +1,7 @@
 import whisper
 
+from transformers import pipeline
+
 class PerceptionAgent:
     def __init__(self):
         # Load the pre-trained model for English
@@ -20,3 +22,7 @@ class PerceptionAgent:
 
         return result.text
 
+    def extract_emotion(self, message):
+        emotion_analyzer = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion")
+        result = emotion_analyzer(message)
+        return result

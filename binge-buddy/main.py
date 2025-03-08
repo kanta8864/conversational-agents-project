@@ -11,7 +11,7 @@ def run_perception():
     agent = PerceptionAgent()
 
     # Get the path to the audio folder using pathlib
-    audio_folder = Path("audio")
+    audio_folder = Path("src/binge_buddy/audio")
     result = None
 
     # Transcribe audio for each file in the audio folder
@@ -25,7 +25,11 @@ def run_perception():
             # Delete the audio file after transcribing
             # audio_file.unlink()  # unlink() deletes the file
 
-    return result
+    # Extract emotion from the transcribed message
+    emotion_result = agent.extract_emotion(result)
+    print(emotion_result)
+
+    return result, emotion_result
 
 
 def main():
@@ -43,7 +47,7 @@ def main():
     print(f"Store this information? {result}")
 
     # Attempt to pass perception message
-    current_message = run_perception()
+    current_message, current_emotion = run_perception()
     result = memory_sentinel.analyze_message(
         current_message if current_message else "Hey!"
     )
