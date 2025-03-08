@@ -1,21 +1,23 @@
-# Create custom LLM class
 import requests
-
-from typing import Any, List, Mapping, Optional
 from langchain.llms.base import LLM
+from langchain.schema import PromptValue  # Import ChatPromptValue
 
+class OllamaLLM(LLM):  # Inherit from the LLM base class
+    model: str = "deepseek-r1:8b"  # Default model
+    temperature: float = 0.0  # Default temperature
 
-# Define the custom OllamaLLM class
-class OllamaLLM:
-    # Using the distilled model with 8B parameters
-    model: str = "deepseek-r1:8b"
-    temperature: float = 0.0
+    def _call(self, prompt: str, **kwargs) -> str:
+        """
+        Call the Ollama API with the given prompt and return the response.
+        """
+        # Convert ChatPromptValue to a string if necessary
+        if isinstance(prompt, PromptValue):
+            prompt = str(prompt)  # Convert ChatPromptValue to a string
 
-    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         url = "http://localhost:11434/api/generate"
         payload = {
             "model": self.model,
-            "prompt": prompt,
+            "prompt": prompt,  # Use the stringified prompt
             "stream": False,
             "temperature": self.temperature,
         }

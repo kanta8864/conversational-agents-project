@@ -59,7 +59,6 @@ prompt = ChatPromptTemplate.from_messages(
 
 llm = OllamaLLM()
 
-
 # Define a function to convert dictionaries to LangChain message objects
 def convert_to_messages(messages):
     langchain_messages = []
@@ -85,7 +84,7 @@ def format_prompt(messages):
 
 
 # Define a function to run the pipeline
-def run_pipeline(messages):
+def run_memory_sentinel(messages):
     # Format the prompt
     formatted_prompt = format_prompt(messages)
 
