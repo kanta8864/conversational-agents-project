@@ -20,14 +20,14 @@ def run_perception():
     ) in audio_folder.iterdir():  # iterdir() gives us each file in the folder
         if audio_file.is_file():  # Check if it's a file (not a directory)
             result = agent.transcribe(audio_file)
-            print(result)
+            # print(result)
 
             # Delete the audio file after transcribing
             # audio_file.unlink()  # unlink() deletes the file
 
     # Extract emotion from the transcribed message
     emotion_result = agent.extract_emotion(result)
-    print(emotion_result)
+    # print(emotion_result)
 
     return result, emotion_result
 
