@@ -92,7 +92,7 @@ class MemoryExtractor:
 
         I will tip you $20 if you are perfect, and I will fine you $40 if you miss any important information or change any incorrect information.
 
-        Take a deep breath, think step by step, and then analyze the following message:
+        Take a deep breath, think step by step and in the end simply return a list of new information extracted under the title "Memory Extractor Result:" Be concrete with your final result.
         """
 
         self.prompt = ChatPromptTemplate.from_messages(

@@ -1,6 +1,7 @@
 from pathlib import Path
 from binge_buddy.perception_agent import PerceptionAgent
 from binge_buddy.memory_handler import app
+from langchain_core.messages import HumanMessage
 
 def run_perception():
     # Make instance of PerceptionAgent
@@ -31,8 +32,14 @@ def main():
     # Attempt to pass perception message
     # current_message = run_perception()
 
+    # Ensure the input is structured correctly, with 'messages' being a list
+    inputs = {
+        "messages": [HumanMessage(content=current_message)],
+    }
+
     # Run the whole memory pipeline with langgraph
-    for output in app.with_config({"run_name": "Memory"}).stream(current_message):
+    for output in app.with_config({"run_name": "Memory"}).stream(inputs):
+        # Output from the graph nodes (app stream processing)
         for key, value in output.items():
             print(f"Output from node '{key}':")
             print("---")

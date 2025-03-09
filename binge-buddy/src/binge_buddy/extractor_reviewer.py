@@ -38,7 +38,7 @@ class ExtractorReviewer:
         {user_message}
 
         ### **Proposed New Memory**
-        {new_memory}
+        {extracted_knowledge}
 
         ---
 
@@ -72,6 +72,6 @@ if __name__ == "__main__":
 
     response = memory_reviewer.memory_reviewer_runnable.invoke({
         "user_message": [HumanMessage(content=user_message)],  
-        "new_memory": new_memory   
+        "extracted_knowledge": new_memory   
     })
     print(response)

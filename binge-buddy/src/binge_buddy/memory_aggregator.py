@@ -29,7 +29,7 @@ class MemoryAggregator:
         Here is the information that you are given with: 
 
         ## New memories
-        {new_memories} 
+        {extracted_knowledge} 
 
         ## Existing memories
         {existing_memories} 
@@ -37,7 +37,7 @@ class MemoryAggregator:
         ### Task Breakdown:
 
         1. **Extract and Categorize Information:**
-        - Assign each extracted piece of information in {new_memories} to its appropriate category from the predefined list below.
+        - Assign each extracted piece of information in {extracted_knowledge} to its appropriate category from the predefined list below.
         - A single message may contain multiple relevant pieces of information that should be categorized separately.
 
         2. **Compare with Existing Knowledge:**
@@ -71,19 +71,20 @@ class MemoryAggregator:
             13. **Rewatching tendencies** (e.g., Frequently rewatches Friends; Rarely rewatch movies)
             14. **Popularity preferences** (e.g., Prefers cult classics over mainstream hits)
 
-        5. **Final Action:**
-        - Once all pieces of knowledge are extracted, categorized, and aggregated properly, call the appropriate tool(s) to update the memory.
-        - Ensure that **all relevant information is stored properly** before responding with `DONE`.
-        - If multiple pieces of information are found, call all necessary tools in a single action—you only have one chance to update the memory.
-
         ---
         **Important Notes:**
         - Be meticulous—missing a critical detail may result in a fine.
         - Never discard useful information.
-        - If an update modifies an existing record, ensure both old and new information are preserved unless the user’s intent is a full replacement.
+        - If an update modifies an existing record, ensure both old and new information are preserved unless the user's intent is a full replacement.
         - If uncertain, prioritize retaining more information rather than less.
 
-        Good luck!! You got this!
+        Good luck!! You got this! As a final output, simply give us the aggregated memory entries. Write the final output under the title "Aggregation Result:"
+        Example final output can be: 
+        
+        "favorite_movies": ["The Matrix"],
+        "movies_and_genres_liked": ["Sci-Fi"],
+        "streaming_platforms": ["Netflix", "Hulu"]
+        
         """
 
         self.prompt = ChatPromptTemplate.from_messages([
@@ -106,13 +107,13 @@ if __name__ == "__main__":
     - Prefers Netflix for streaming
     """
 
-    new_memories = """
+    extracted_knowledge = """
     - Likes horror movies
     - Favorite movie is Tonari No Totoro
     """
 
     response = memory_aggregator.memory_aggregator_runnable.invoke({
         "existing_memories": existing_memories,  
-        "new_memories": new_memories   
+        "extracted_knowledge": extracted_knowledge   
     })
     print(response)

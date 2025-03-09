@@ -45,7 +45,7 @@ class AggregatorReviewer:
         {existing_memories}
 
         ### **Newly Extracted Memory**
-        {new_memory}
+        {extracted_knowledge}
 
         ### **Aggregated Memory (Final Output)**
         {aggregated_memory}
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     - Prefers Netflix for streaming
     """
 
-    new_memories = """
+    extracted_knowledge = """
     - Likes horror movies
     - Favorite movie is Tonari No Totoro
     """
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     response = memory_reviewer.aggregator_reviewer_runnable.invoke({
         "existing_memories": existing_memories,  
-        "new_memory": new_memories,
+        "extracted_knowledge": extracted_knowledge,
         "aggregated_memory": aggregated_memory 
     })
     print(response)
