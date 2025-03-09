@@ -17,7 +17,7 @@ from langchain.tools import StructuredTool
 
 
 llm = OllamaLLM()
-db = MemoryDB()
+# db = MemoryDB()
 
 # defines argument type 
 class AddKnowledge(BaseModel):
@@ -122,9 +122,10 @@ def call_memory_sentinel(state):
     return {"contains_information": "TRUE" in response and "yes" or "no"}
 
 def call_memory_extractor(state):
-    memories = db.get_collection("memories").find()
-    for document in memories:
-        print(document)
+    # memories = db.get_collection("memories").find()
+    # for document in memories:
+    #     print(document)
+    memories = state.get("memories", [])
     messages = state["messages"]
     last_message = messages[-1]
     memory_extractor = MemoryExtractor(llm=llm)
