@@ -9,7 +9,8 @@ from pymongo import MongoClient
 
 # Load environment variables from the root `.env`
 BASE_DIR = Path(__file__).resolve().parent.parent
-ENV_PATH = BASE_DIR / ".env"
+print(BASE_DIR)
+ENV_PATH = BASE_DIR / "../.env"
 
 # Load environment variables safely
 if ENV_PATH.exists():

@@ -1,28 +1,21 @@
-from typing import List
-
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
-from langchain.schema import HumanMessage, SystemMessage
-
-from binge_buddy.message import Message
-from binge_buddy.message_log import MessageLog
+from langchain.schema import HumanMessage
 from binge_buddy.ollama import OllamaLLM
+from langchain_core.runnables import RunnableLambda
+
 
 
 class MemorySentinel:
-    def __init__(self, long_term_memory_db, message_log: "MessageLog", llm: OllamaLLM):
+    def __init__(self, llm: OllamaLLM):
         """
         Initializes the MemorySentinel agent.
 
-        :param long_term_memory_db: The long-term memory database (MongoDB or similar).
-        :param message_log: The message log for the current session.
         :param llm: The LLM model to use (e.g., OllamaLLM).
         """
-        self.long_term_memory_db = long_term_memory_db
-        self.message_log = message_log
         self.llm = llm
 
         # System prompt for the memory sentinel to decide whether to store information
@@ -65,58 +58,21 @@ class MemorySentinel:
                 ),
             ]
         )
-
-    def format_messages(self, messages: List["Message"]) -> str:
-        """
-        Converts messages into LangChain message objects and formats them for the LLM.
-        """
-        langchain_messages = [msg.to_langchain_message() for msg in messages]
-        chat_prompt_value = self.prompt.format_messages(messages=langchain_messages)
-        formatted_prompt = "\n".join([message.content for message in chat_prompt_value])
-        return formatted_prompt
-
-    def run_analysis_pipeline(self, formatted_prompt: str) -> str:
-        """
-        Sends the formatted prompt to the LLM and returns the response.
-        """
-        return self.llm._call(formatted_prompt)
-
-    def analyze_message(self, current_message: str) -> str:
-        """
-        Analyzes the current message to check if it contains useful information for long-term memory.
-
-        :param current_message: The message to be analyzed.
-        :return: True if the message contains useful information, otherwise False.
-        """
-
-        # Get the full message history
-        message_history = self.message_log.get_history()
-
-        # Create Message objects for the history
-        messages = [Message(role="user", content=msg) for msg in message_history]
-
-        # Format the messages for the LLM
-        formatted_prompt = self.format_messages(messages)
-
-        # Run the pipeline and get the response
-        response = self.run_analysis_pipeline(formatted_prompt)
-
-        # Return True/False based on the response
-        return response
+        self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
+        self.memory_sentinel_runnable = self.prompt | self.llm_runnable
 
 
 if __name__ == "__main__":
     # Initialize the message log and LLM (for now, using a mock LLM)
-    llm = OllamaLLM()  # or any other LLM model you are using
-    message_log = MessageLog(session_id="12345", user_id="user123")
-    memory_sentinel = MemorySentinel(
-        long_term_memory_db=None, message_log=message_log, llm=llm
-    )
+    llm = OllamaLLM() 
+    memory_sentinel = MemorySentinel(llm=llm)
 
     # Test message
     current_message = "I love watching sci-fi movies like The Matrix!"
 
-    # Analyze the message
-    result = memory_sentinel.analyze_message(current_message)
-    print("Store this information?", result)
+    response = memory_sentinel.memory_sentinel_runnable.invoke({
+        "messages": [HumanMessage(content=current_message)],   
+    })
+
+    print("Store this information?", response)
 
