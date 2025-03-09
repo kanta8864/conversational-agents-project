@@ -1,5 +1,12 @@
 import json
-from typing import TypedDict, Sequence
+from typing import Dict, Optional, Sequence, TypedDict
+
+from langchain.tools import StructuredTool
+from langchain_core.messages import BaseMessage, ToolMessage
+from langgraph.graph import END, StateGraph
+from pydantic import BaseModel, Field
+
+from binge_buddy import utils
 from binge_buddy.aggregator_reviewer import AggregatorReviewer
 from binge_buddy.enums import Action, Category
 from binge_buddy.extractor_reviewer import ExtractorReviewer
@@ -7,19 +14,15 @@ from binge_buddy.memory_aggregator import MemoryAggregator
 from binge_buddy.memory_db import MemoryDB
 from binge_buddy.memory_extractor import MemoryExtractor
 from binge_buddy.memory_sentinel import MemorySentinel
-from langchain_core.messages import BaseMessage
-from langchain_core.messages import ToolMessage
-from langgraph.graph import StateGraph, END
-from .ollama import OllamaLLM
-from typing import Optional
-from pydantic import BaseModel, Field
-from langchain.tools import StructuredTool
+from binge_buddy.message_log import MessageLog
 
+from .ollama import OllamaLLM
 
 llm = OllamaLLM()
 # db = MemoryDB()
 
-# defines argument type 
+
+# defines argument type
 class AddKnowledge(BaseModel):
     knowledge: str = Field(
         ...,
@@ -46,13 +49,15 @@ def modify_knowledge(
 ) -> dict:
     print("Modifying Knowledge: ", knowledge, knowledge_old, category, action)
     # retrieve current knowledge base
-    # todo: replace with database retrieval 
+    # todo: replace with database retrieval
     memory = {}
     if category in memory and action == "update":
-        # aggregate old and new knowledge and update memory 
+        # aggregate old and new knowledge and update memory
         # todo: change this temporary aggreation
-        memory[category] = memory[category].replace(knowledge_old, f"{knowledge_old}; {knowledge}")
-    
+        memory[category] = memory[category].replace(
+            knowledge_old, f"{knowledge_old}; {knowledge}"
+        )
+
     return "Modified Knowledge"
 
 
@@ -74,13 +79,14 @@ class AgentState(TypedDict):
     # The list of previous messages in the conversation
     messages: Sequence[BaseMessage]
     # The long-term memories to remember
-    memories: Sequence[str]
+    memories: Dict[str, str]
     # Whether the information is relevant
     contains_information: str
 
     extracted_knowledge: str
 
     aggregated_memory: str
+
 
 # Define the function that determines whether to continue or not
 def should_continue(state):
@@ -117,34 +123,42 @@ def call_tool(state):
 def call_memory_sentinel(state):
     messages = state["messages"]
     last_message = messages[-1]
-    memory_sentinel = MemorySentinel(llm=llm)
-    response = memory_sentinel.memory_sentinel_runnable.invoke([last_message])
+    message_log = MessageLog(user_id="user", session_id="session")
+    memory_sentinel = MemorySentinel(llm=llm, message_log=message_log)
+    response = utils.remove_think_tags(
+        memory_sentinel.memory_sentinel_runnable.invoke([last_message])
+    )
     return {"contains_information": "TRUE" in response and "yes" or "no"}
+
 
 def call_memory_extractor(state):
     # memories = db.get_collection("memories").find()
     # for document in memories:
     #     print(document)
-    memories = state.get("memories", [])
     messages = state["messages"]
     last_message = messages[-1]
-    memory_extractor = MemoryExtractor(llm=llm)
+    message_log = MessageLog(user_id="user", session_id="session")
+    memory_extractor = MemoryExtractor(llm=llm, message_log=message_log)
     response = memory_extractor.memory_extractor_runnable.invoke(
-        {"messages": [last_message], "memories": memories}
+        {"messages": [last_message]}
     )
     response = response.split("Memory Extractor Result:", 1)[-1].strip()
     return {"extracted_knowledge": f"{response}"}
+
 
 def call_extractor_reviewer(state):
     messages = state["messages"]
     last_message = messages[-1]
     extracted_knowledge = state["extracted_knowledge"]
-    memory_reviewer = ExtractorReviewer(llm=llm)
-    response = memory_reviewer.memory_reviewer_runnable.invoke({
-        "user_message": [last_message],  
-        "extracted_knowledge": extracted_knowledge   
-    })
-    return {"extractor_valid": "valid" if "APPROVED" in response else f"invalid: {response}"}
+    message_log = MessageLog(user_id="user", session_id="session")
+    memory_reviewer = ExtractorReviewer(llm=llm, message_log=message_log)
+    response = memory_reviewer.memory_reviewer_runnable.invoke(
+        {"user_message": [last_message], "extracted_knowledge": extracted_knowledge}
+    )
+    return {
+        "extractor_valid": "valid" if "APPROVED" in response else f"invalid: {response}"
+    }
+
 
 def call_memory_aggregator(state):
     memories = state.get("memories", [])
@@ -152,26 +166,30 @@ def call_memory_aggregator(state):
     print("memories", memories)
     print("extracted knowledge", extracted_knowledge)
     memory_aggregator = MemoryAggregator(llm=llm)
-    response = memory_aggregator.memory_aggregator_runnable.invoke({
-        "existing_memories": memories,  
-        "extracted_knowledge": extracted_knowledge   
-    })
+    response = memory_aggregator.run(
+        existing_memories=memories, extracted_knowledge=extracted_knowledge
+    )
     response = response.split("Aggregation Result:", 1)[-1].strip()
     return {"aggregated_memory": f"{response}"}
+
 
 def call_aggregator_reviewer(state):
     memories = state.get("memories", [])
     extracted_knowledge = state["extracted_knowledge"]
     aggregated_memory = state["aggregated_memory"]
     aggregator_reviewer = AggregatorReviewer(llm=llm)
-    response = aggregator_reviewer.aggregator_reviewer_runnable.invoke({
-        "existing_memories": memories,  
-        "extracted_knowledge": extracted_knowledge,
-        "aggregated_memory": aggregated_memory 
-    })
+    response = aggregator_reviewer.run(
+        existing_memories=memories,
+        extracted_knowledge=extracted_knowledge,
+        aggregated_memory=aggregated_memory,
+    )
     print(response)
     response = response.split("Aggregation Result:", 1)[-1].strip()
-    return {"aggregator_valid": "valid" if "APPROVED" in response else f"invalid: {response}"}
+    return {
+        "aggregator_valid": (
+            "valid" if "APPROVED" in response else f"invalid: {response}"
+        )
+    }
 
 
 # Initialize a new graph
@@ -202,7 +220,9 @@ graph.add_conditional_edges(
 
 graph.add_conditional_edges(
     "memory_extractor",
-    lambda state: "continue" if bool(state["extracted_knowledge"]) else "end",  # Ensure to return a string key
+    lambda state: (
+        "continue" if bool(state["extracted_knowledge"]) else "end"
+    ),  # Ensure to return a string key
     {
         "continue": "memory_reviewer",
         "end": END,
@@ -211,12 +231,18 @@ graph.add_conditional_edges(
 
 graph.add_conditional_edges(
     "memory_reviewer",
-    lambda state: "memory_aggregator" if "valid" in state["extractor_valid"] else "memory_extractor",  
+    lambda state: (
+        "memory_aggregator"
+        if "valid" in state["extractor_valid"]
+        else "memory_extractor"
+    ),
 )
 
 graph.add_conditional_edges(
     "memory_aggregator",
-    lambda state: "continue" if bool(state["aggregated_memory"]) else "end",  # Ensure to return a string key
+    lambda state: (
+        "continue" if bool(state["aggregated_memory"]) else "end"
+    ),  # Ensure to return a string key
     {
         "continue": "aggregator_reviewer",
         "end": END,
@@ -225,7 +251,9 @@ graph.add_conditional_edges(
 
 graph.add_conditional_edges(
     "aggregator_reviewer",
-    lambda state: "action" if "valid" in state["aggregator_valid"] else "memory_aggregator"
+    lambda state: (
+        "action" if "valid" in state["aggregator_valid"] else "memory_aggregator"
+    ),
 )
 
 # We now add Normal Edges that should always be called after another
@@ -233,4 +261,3 @@ graph.add_edge("action", END)
 
 # We compile the entire workflow as a runnable
 app = graph.compile()
-

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from langchain_core.messages import HumanMessage
 
+from binge_buddy.memory_db import MemoryDB
 from binge_buddy.memory_handler import app
 from binge_buddy.perception_agent import PerceptionAgent
 
@@ -42,9 +43,28 @@ def main():
     # Attempt to pass perception message
     # current_message = run_perception()
 
+    # Attempt to connect to db
+    db = MemoryDB()
+    sample_memory = {
+        "user_id": "kanta_001",
+        "name": "Kanta",
+        "memories": {
+            "LIKES": "Kanta likes sci-fi and action movies but he also enjoys rom-coms.",
+            "DISLIKES": "Kanta hates Japanese movies, especially anime.",
+            "FAVOURITES": "Kanta's favorite movie is Inception, and he loves Christopher Nolan's films.",
+            "GENRE": "Kanta prefers movies with deep storytelling, complex characters, and mind-bending plots.",
+        },
+        "last_updated": "2024-03-09T12:00:00Z",
+    }
+
+    db.insert_one(collection_name="memories", data=sample_memory)
+
+    memories = db.find_one(collection_name="memories", query={"name": "Kanta"})
+
     # Ensure the input is structured correctly, with 'messages' being a list
     inputs = {
         "messages": [HumanMessage(content=current_message)],
+        "memories": memories["memories"],
     }
 
     # Run the whole memory pipeline with langgraph
@@ -59,7 +79,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-    result, emotion_result = run_perception()
-    print(result)
-    print(emotion_result)
-
+    # result, emotion_result = run_perception()
+    # print(result)
+    # print(emotion_result)

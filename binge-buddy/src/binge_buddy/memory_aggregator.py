@@ -1,13 +1,15 @@
-from binge_buddy.ollama import OllamaLLM
 from langchain.prompts import (
     ChatPromptTemplate,
-    SystemMessagePromptTemplate,
     MessagesPlaceholder,
+    SystemMessagePromptTemplate,
 )
 from langchain_core.runnables import RunnableLambda
 
+from binge_buddy import utils
+from binge_buddy.ollama import OllamaLLM
 
-class MemoryAggregator: 
+
+class MemoryAggregator:
     def __init__(self, llm: OllamaLLM):
         """
         Initializes the MemoryAggregator agent.
@@ -79,26 +81,34 @@ class MemoryAggregator:
         - If uncertain, prioritize retaining more information rather than less.
 
         Good luck!! You got this! As a final output, simply give us the aggregated memory entries. Write the final output under the title "Aggregation Result:"
-        Example final output can be: 
-        
-        "favorite_movies": ["The Matrix"],
-        "movies_and_genres_liked": ["Sci-Fi"],
-        "streaming_platforms": ["Netflix", "Hulu"]
-        
         """
 
-        self.prompt = ChatPromptTemplate.from_messages([
-            SystemMessagePromptTemplate.from_template(self.system_prompt_initial)
-        ])
+        self.prompt = ChatPromptTemplate.from_messages(
+            [SystemMessagePromptTemplate.from_template(self.system_prompt_initial)]
+        )
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
         self.memory_aggregator_runnable = self.prompt | self.llm_runnable
+
+    def run(self, existing_memories, extracted_knowledge):
+        response = self.memory_aggregator_runnable.invoke(
+            {
+                "existing_memories": existing_memories,
+                "extracted_knowledge": extracted_knowledge,
+            }
+        )
+
+        return utils.remove_think_tags(response)
+
 
 if __name__ == "__main__":
     llm = OllamaLLM()
     memory_aggregator = MemoryAggregator(llm=llm)
 
     messages = [
-        {"role": "user", "content": "I really enjoyed Inception and I want to watch Oppenheimer next."},
+        {
+            "role": "user",
+            "content": "I really enjoyed Inception and I want to watch Oppenheimer next.",
+        },
     ]
 
     existing_memories = """
@@ -112,8 +122,8 @@ if __name__ == "__main__":
     - Favorite movie is Tonari No Totoro
     """
 
-    response = memory_aggregator.memory_aggregator_runnable.invoke({
-        "existing_memories": existing_memories,  
-        "extracted_knowledge": extracted_knowledge   
-    })
+    response = memory_aggregator.run(
+        extracted_knowledge=extracted_knowledge, existing_memories=existing_memories
+    )
     print(response)
+

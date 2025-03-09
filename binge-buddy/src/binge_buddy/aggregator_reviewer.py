@@ -1,11 +1,17 @@
-from binge_buddy.message_log import MessageLog
-from binge_buddy.ollama import OllamaLLM
+from langchain.prompts import (
+    ChatPromptTemplate,
+    MessagesPlaceholder,
+    SystemMessagePromptTemplate,
+)
 from langchain.schema import HumanMessage
-from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableLambda
 
+from binge_buddy import utils
+from binge_buddy.message_log import MessageLog
+from binge_buddy.ollama import OllamaLLM
 
-class AggregatorReviewer: 
+
+class AggregatorReviewer:
     def __init__(self, llm: OllamaLLM):
         """
         Initializes the MemorySentinel agent.
@@ -61,11 +67,24 @@ class AggregatorReviewer:
         **Reason:** Clearly explain why the aggregated memory is incorrect, specifying whether it introduces hallucinations, omits crucial details, or alters existing knowledge incorrectly.
         """
 
-
-        self.prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(self.system_prompt_initial)])
+        self.prompt = ChatPromptTemplate.from_messages(
+            [SystemMessagePromptTemplate.from_template(self.system_prompt_initial)]
+        )
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
         self.aggregator_reviewer_runnable = self.prompt | self.llm_runnable
-        
+
+    def run(self, existing_memories, extracted_knowledge, aggregated_memory):
+
+        response = self.aggregator_reviewer_runnable.invoke(
+            {
+                "existing_memories": existing_memories,
+                "extracted_knowledge": extracted_knowledge,
+                "aggregated_memory": aggregated_memory,
+            }
+        )
+
+        return utils.remove_think_tags(response)
+
 
 if __name__ == "__main__":
     llm = OllamaLLM()
@@ -84,14 +103,21 @@ if __name__ == "__main__":
     """
 
     aggregated_memory = """
-    - Movies and Genres Liked: Sci-fi, Horror.
-    - Favorite Movies: The Matrix, Tonari No Totoro.
-    - Preferred Streaming Platform: Netflix.
+    1. **Movies and Genres liked**
+       - Likes sci-fi movies
+       - Likes horror movies
+
+    2. **Favorite movies**
+       - Favorite movie is The Matrix
+       - Favorite movie is Tonari No Totoro
+
+    3. **Preferred streaming platforms**
+       - Prefers Netflix for streaming
     """
 
-    response = memory_reviewer.aggregator_reviewer_runnable.invoke({
-        "existing_memories": existing_memories,  
-        "extracted_knowledge": extracted_knowledge,
-        "aggregated_memory": aggregated_memory 
-    })
+    response = memory_reviewer.run(
+        existing_memories=existing_memories,
+        extracted_knowledge=extracted_knowledge,
+        aggregated_memory=aggregated_memory,
+    )
     print(response)
