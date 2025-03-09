@@ -1,22 +1,28 @@
+from typing import Optional
+
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
-from langchain.schema import HumanMessage
-from binge_buddy.ollama import OllamaLLM
 from langchain_core.runnables import RunnableLambda
 
+from binge_buddy import utils
+from binge_buddy.message import Message
+from binge_buddy.message_log import MessageLog
+from binge_buddy.ollama import OllamaLLM
 
 
 class MemorySentinel:
-    def __init__(self, llm: OllamaLLM):
+    def __init__(self, llm: OllamaLLM, message_log: MessageLog):
         """
         Initializes the MemorySentinel agent.
 
         :param llm: The LLM model to use (e.g., OllamaLLM).
+        :param message_log: The message_log that it needs to be observing
         """
         self.llm = llm
+        self.message_log = message_log
 
         # System prompt for the memory sentinel to decide whether to store information
         self.system_prompt_initial = """
@@ -61,18 +67,45 @@ class MemorySentinel:
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
         self.memory_sentinel_runnable = self.prompt | self.llm_runnable
 
+    def run(self) -> Optional[bool]:
+        """
+        Analyzes the current message to check if it contains useful information for long-term memory.
+
+        :return: True if the message contains useful information, otherwise False.
+        """
+
+        # Get the latest message from the log
+        message = self.message_log.get_last_message()
+
+        if not message:
+            return None
+
+        print(message.to_langchain_message())
+
+        # Run the pipeline and get the response
+        response = self.memory_sentinel_runnable.invoke(
+            [message.to_langchain_message()]
+        )
+
+        # Return True/False based on the response
+        return utils.remove_think_tags(response) == "TRUE"
+
 
 if __name__ == "__main__":
     # Initialize the message log and LLM (for now, using a mock LLM)
-    llm = OllamaLLM() 
-    memory_sentinel = MemorySentinel(llm=llm)
+    llm = OllamaLLM()
+    message_log = MessageLog("user", "session")
+    memory_sentinel = MemorySentinel(llm=llm, message_log=message_log)
 
     # Test message
-    current_message = "I love watching sci-fi movies like The Matrix!"
+    current_message = Message(
+        content="I love watching sci-fi movies like The Matrix!",
+        role="user",
+        session_id="session",
+        user_id="user",
+    )
 
-    response = memory_sentinel.memory_sentinel_runnable.invoke({
-        "messages": [HumanMessage(content=current_message)],   
-    })
+    message_log.add_message(current_message)
 
+    response = memory_sentinel.run()
     print("Store this information?", response)
-

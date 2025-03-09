@@ -1,7 +1,10 @@
 from pathlib import Path
-from binge_buddy.perception_agent import PerceptionAgent
-from binge_buddy.memory_handler import app
+
 from langchain_core.messages import HumanMessage
+
+from binge_buddy.memory_handler import app
+from binge_buddy.perception_agent import PerceptionAgent
+
 
 def run_perception():
     # Make instance of PerceptionAgent
@@ -53,8 +56,10 @@ def main():
             print(value)
         print("\n---\n")
 
+
 if __name__ == "__main__":
-    # main()
+    main()
     result, emotion_result = run_perception()
     print(result)
     print(emotion_result)
+

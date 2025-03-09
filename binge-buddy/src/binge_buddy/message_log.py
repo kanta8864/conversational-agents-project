@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 from .message import Message
 
@@ -31,15 +31,14 @@ class MessageLog:
         """
         return [f"{message.role}: {message.content}" for message in self.messages]
 
-    def get_last_message(self) -> Optional[str]:
+    def get_last_message(self) -> Optional[Message]:
         """
         Returns the last message content in the session log, including its role.
 
         :return: The last message content along with its role or None if no messages exist.
         """
         if self.messages:
-            last_message = self.messages[-1]
-            return f"{last_message.role}: {last_message.content}"
+            return self.messages[-1]
         return None
 
     def clear_log(self) -> None:
@@ -73,3 +72,35 @@ class MessageLog:
         return "\n".join(
             f"{message.role}: {message.content}" for message in self.messages
         )
+
+    def __iter__(self) -> Iterator[Message]:
+        """
+        Returns a new iterator for the messages each time __iter__ is called.
+        """
+        return MessageLogIterator(self.messages)
+
+
+class MessageLogIterator:
+    def __init__(self, messages: List[Message]):
+        """
+        Initialize the iterator with a list of messages.
+        """
+        self.messages = messages
+        self._index = 0  # Initialize index to start from the first message
+
+    def __iter__(self):
+        """
+        Return the iterator itself.
+        """
+        return self
+
+    def __next__(self) -> Message:
+        """
+        Return the next message in the list, or raise StopIteration if done.
+        """
+        if self._index < len(self.messages):
+            message = self.messages[self._index]
+            self._index += 1
+            return message
+        else:
+            raise StopIteration

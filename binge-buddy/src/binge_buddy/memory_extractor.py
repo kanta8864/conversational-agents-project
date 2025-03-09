@@ -1,22 +1,28 @@
-from binge_buddy.message_log import MessageLog
-from binge_buddy.ollama import OllamaLLM
+from typing import Dict, List, Optional
+
 from langchain.prompts import (
     ChatPromptTemplate,
-    SystemMessagePromptTemplate,
     MessagesPlaceholder,
+    SystemMessagePromptTemplate,
 )
-from langchain.schema import SystemMessage, HumanMessage
+from langchain.schema import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableLambda
 
+from binge_buddy import utils
+from binge_buddy.message import Message
+from binge_buddy.message_log import MessageLog
+from binge_buddy.ollama import OllamaLLM
 
-class MemoryExtractor: 
-    def __init__(self, llm: OllamaLLM):
+
+class MemoryExtractor:
+    def __init__(self, llm: OllamaLLM, message_log: MessageLog):
         """
         Initializes the MemorySentinel agent.
 
         :param llm: The LLM model to use (e.g., OllamaLLM).
         """
         self.llm = llm
+        self.message_log = message_log
 
         # System prompt for the memory sentinel to decide whether to store information
         self.system_prompt_initial = """
@@ -77,49 +83,77 @@ class MemoryExtractor:
         When you receive a message, you perform a sequence of steps consisting of:
 
         1. Analyze the most recent Human message for new information. You will see multiple messages for context, but we are only looking for new information in the most recent message.  
-        2. Compare this to the knowledge you already have.  
-        3. Determine if this is new knowledge, an update to existing knowledge, or if previously stored information needs to be corrected. In case it is an updat to existing knowledge, 
-        aggregate the old and new information, instead of overwriting and retain old knowledge too. 
-        - Example: A movie the user previously disliked might now be a favorite, or they might have switched to a new streaming platform.  
+        2. Extract new information and return new memories from this information. We can have multiple pieces of information so we can also get multiple memories. 
 
-        Here are the existing bits of information we have about the user:
-
-        ```
-        {memories}
-        ```
-
-        Call the right tools to save the information, then respond with DONE. If you identiy multiple pieces of information, call everything at once. You only have one chance to call tools.
-
-        I will tip you $20 if you are perfect, and I will fine you $40 if you miss any important information or change any incorrect information.
+        I will tip you $20 if you are perfect, and I will fine you $40 if you miss any important information.
 
         Take a deep breath, think step by step and in the end simply return a list of new information extracted under the title "Memory Extractor Result:" Be concrete with your final result.
+        List out all the memories as a json array in the format 
+            [
+                {"memory": ...},
+                {"memory": ...},
+                ...
+            ]
         """
-
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessagePromptTemplate.from_template(self.system_prompt_initial),
-                MessagesPlaceholder(variable_name="messages")
+                MessagesPlaceholder(variable_name="messages"),
             ]
         )
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
         self.memory_extractor_runnable = self.prompt | self.llm_runnable
 
+    def format_memories(self, response: str) -> List[Dict]: ...
+
+    def run(self) -> Optional[List[Dict]]:
+        """
+        Analyzes the current message to check if it contains useful information for long-term memory.
+
+        :return: List of dictionary objects with memories.
+        """
+
+        if len(self.message_log) == 0:
+            return None
+
+        messages = []
+        for message in self.message_log:
+            if message.role == "user":
+                messages.append(message.to_langchain_message())
+
+        print(messages)
+        # Run the pipeline and get the response
+        response = utils.remove_think_tags(
+            self.memory_extractor_runnable.invoke({"messages": messages})
+        )
+
+        return response
+
+
 if __name__ == "__main__":
     llm = OllamaLLM()
-    memory_extractor = MemoryExtractor(llm=llm)
+    message_log = MessageLog(user_id="user", session_id="session")
+    memory_extractor = MemoryExtractor(llm=llm, message_log=message_log)
 
     messages = [
-        {"role": "user", "content": "I really enjoyed Inception and I want to watch Oppenheimer next."},
+        Message(
+            role="user",
+            content="I really enjoyed Inception and I want to watch Oppenheimer next.",
+            user_id="user",
+            session_id="session",
+        ),
+        Message(
+            role="user",
+            content="Sci-fi movies are really great but crime thrillers are even better.",
+            user_id="user",
+            session_id="session",
+        ),
     ]
 
-    memories = """
-    - Likes sci-fi movies
-    - Favorite movie is The Matrix
-    - Prefers Netflix for streaming
-    """
+    for message in messages:
+        message_log.add_message(message)
 
-    response = memory_extractor.memory_extractor_runnable.invoke({
-        "messages": messages,  
-        "memories": memories   
-    })
+    response = memory_extractor.run()
+
     print(response)
+
