@@ -1,11 +1,72 @@
 from typing import TypedDict, Sequence
+from binge_buddy.aggregator_reviewer import AggregatorReviewer
+from binge_buddy.enums import Action, Category
+from binge_buddy.extractor_reviewer import ExtractorReviewer
+from binge_buddy.memory_aggregator import MemoryAggregator
+from binge_buddy.memory_extractor import MemoryExtractor
+from binge_buddy.memory_sentinel import MemorySentinel
 from langchain_core.messages import BaseMessage
 import json
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt import ToolInvocation
 from langgraph.graph import StateGraph, END
-from .memory_sentinel import call_memory_sentinel
-from .memory_extractor import call_memory_extractor
+from .ollama import OllamaLLM
+from typing import Optional
+from pydantic import BaseModel, Field
+from langchain.tools import StructuredTool
+from langgraph.prebuilt import ToolInvocation, ToolExecutor
+
+
+llm = OllamaLLM()
+
+# defines argument type 
+class AddKnowledge(BaseModel):
+    knowledge: str = Field(
+        ...,
+        description="Condensed bit of knowledge to be saved for future reference in the format: [person(s) this is relevant to] [fact to store] (e.g. Husband doesn't like sci-fi; I love horror movies; etc)",
+    )
+    knowledge_old: Optional[str] = Field(
+        None,
+        description="If updating, the complete, exact phrase of the existing knowledge to modify",
+    )
+    category: Category = Field(
+        ..., description="Category that this knowledge belongs to"
+    )
+    action: Action = Field(
+        ...,
+        description="Whether this knowledge is adding a new record, or updating an existing record with aggregated information",
+    )
+
+
+def modify_knowledge(
+    knowledge: str,
+    category: str,
+    action: str,
+    knowledge_old: str = "",
+) -> dict:
+    print("Modifying Knowledge: ", knowledge, knowledge_old, category, action)
+    # retrieve current knowledge base
+    # todo: replace with database retrieval 
+    memory = {}
+    if category in memory and action == "update":
+        # aggregate old and new knowledge and update memory 
+        # todo: change this temporary aggreation
+        memory[category] = memory[category].replace(knowledge_old, f"{knowledge_old}; {knowledge}")
+    
+    return "Modified Knowledge"
+
+
+tool_modify_knowledge = StructuredTool.from_function(
+    func=modify_knowledge,
+    name="Knowledge_Modifier",
+    description="Add or update memory",
+    args_schema=AddKnowledge,
+)
+
+# Set up the agent's tools
+agent_tools = [tool_modify_knowledge]
+
+tool_executor = ToolExecutor(agent_tools)
+
 
 ###### SET UP THE GRAPH ######
 class AgentState(TypedDict):
@@ -15,6 +76,8 @@ class AgentState(TypedDict):
     memories: Sequence[str]
     # Whether the information is relevant
     contains_information: str
+
+    new_memories: Sequence[str]
 
 # Define the function that determines whether to continue or not
 def should_continue(state):
@@ -52,16 +115,66 @@ def call_tool(state):
         messages.append(function_message)
     return {"messages": messages}
 
+
+def call_memory_sentinel(state):
+    messages = state["messages"]
+    last_message = messages[-1]
+    memory_sentinel = MemorySentinel(llm=llm)
+    response = memory_sentinel.memory_sentinel_runnable.invoke(last_message)
+    return {"contains_information": "TRUE" in response.content and "yes" or "no"}
+
+def call_memory_extractor(state):
+    messages = state["messages"]
+    last_message = messages[-1]
+    memories = state["memories"]
+    memory_extractor = MemoryExtractor(llm=llm)
+    response = memory_extractor.memory_extractor_runnable(
+        {"messages": last_message, "memories": memories}
+    )
+    return {"extracted_knowledge": f"{response.content}"}
+
+def call_extractor_reviewer(state):
+    messages = state["messages"]
+    last_message = messages[-1]
+    new_memories = state["new_memories"]
+    memory_reviewer = ExtractorReviewer(llm=llm)
+    response = memory_reviewer.memory_reviewer_runnable.invoke({
+        "user_message": last_message,  
+        "new_memory": new_memories   
+    })
+    return {"extractor_valid": "valid" if "APPROVED" in response.content else f"invalid: {response.content}"}
+
+def call_memory_aggregator(state):
+    memories = state["memories"]
+    new_memories = state["new_memories"]
+    memory_aggregator = MemoryAggregator(llm=llm)
+    response = memory_aggregator.memory_aggregator_runnable.invoke({
+        "existing_memories": memories,  
+        "new_memories": new_memories   
+    })
+    return {"aggregated_memory": f"{response.content}"}
+
+def call_aggregator_reviewer(state):
+    messages = state["messages"]
+    last_message = messages[-1]
+    new_memories = state["new_memories"]
+    aggregator_reviewer = AggregatorReviewer(llm=llm)
+    response = aggregator_reviewer.aggregator_reviewer_runnable.invoke({
+        "user_message": last_message,  
+        "new_memory": new_memories   
+    })
+    return {"aggregator_valid": "valid" if "APPROVED" in response.content else f"invalid: {response.content}"}
+
+
 # Initialize a new graph
 graph = StateGraph(AgentState)
 
 # Define the two "Nodes"" we will cycle between
 graph.add_node("sentinel", call_memory_sentinel)
 graph.add_node("memory_extractor", call_memory_extractor)
-graph.add_node("memory_reviewer", call_memory_reviewer)
-graph.add_node("memory_attributor", call_memory_attributor)
-graph.add_node("attribute_reviwer", call_attribute_reviewer)
-graph.add_node("action_assigner", call_action_assigner)
+graph.add_node("memory_reviewer", call_extractor_reviewer)
+graph.add_node("memory_aggregator", call_memory_aggregator)
+graph.add_node("aggregator_reviewer", call_aggregator_reviewer)
 graph.add_node("action", call_tool)
 
 # Define all our Edges
@@ -88,36 +201,27 @@ graph.add_conditional_edges(
 )
 graph.add_conditional_edges(
     "memory_reviewer",
-    should_continue,
+    lambda x: x["extractor_valid"],
     {
-        "continue": "memory_attributor",
-        "end": "memory_extractor",
-    },
+        "valid": "memory_aggregator",
+    }.get, 
+    "memory_extractor",  
 )
 graph.add_conditional_edges(
-    "memory_attributor",
+    "memory_aggregator",
     should_continue,
     {
-        "continue": "attribute_reviwer",
+        "continue": "aggregator_reviewer",
         "end": END,
     },
 )
 graph.add_conditional_edges(
-    "attribute_reviwer",
-    should_continue,
+    "aggregator_reviewer",
+    lambda x: x["extractor_valid"],
     {
-        "continue": "action_assigner",
-        "end": "memory_attributor",
-    },
-)
-
-graph.add_conditional_edges(
-    "action_assigner",
-    should_continue,
-    {
-        "continue": "action",
-        "end": END,
-    },
+        "valid": "action",
+    }.get, 
+    "memory_aggregator",  
 )
 
 # We now add Normal Edges that should always be called after another
