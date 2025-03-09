@@ -18,7 +18,7 @@ def upload_audio():
         audio_file = flask.request.files['audio']
         filename = audio_file.filename
         # Save the audio file with the custom name provided by the user
-        audio_file.save(os.path.join("audio", filename))
+        audio_file.save(os.path.join("../../audio", filename))
         
         return "Audio uploaded successfully", 200
 

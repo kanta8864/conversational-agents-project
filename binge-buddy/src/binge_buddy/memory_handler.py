@@ -1,3 +1,4 @@
+import json
 from typing import TypedDict, Sequence
 from binge_buddy.aggregator_reviewer import AggregatorReviewer
 from binge_buddy.enums import Action, Category
@@ -6,14 +7,12 @@ from binge_buddy.memory_aggregator import MemoryAggregator
 from binge_buddy.memory_extractor import MemoryExtractor
 from binge_buddy.memory_sentinel import MemorySentinel
 from langchain_core.messages import BaseMessage
-import json
 from langchain_core.messages import ToolMessage
 from langgraph.graph import StateGraph, END
 from .ollama import OllamaLLM
 from typing import Optional
 from pydantic import BaseModel, Field
 from langchain.tools import StructuredTool
-from langgraph.prebuilt import ToolInvocation, ToolExecutor
 
 
 llm = OllamaLLM()
@@ -65,7 +64,7 @@ tool_modify_knowledge = StructuredTool.from_function(
 # Set up the agent's tools
 agent_tools = [tool_modify_knowledge]
 
-tool_executor = ToolExecutor(agent_tools)
+# tool_executor = lp.ToolExecutor(agent_tools)
 
 
 ###### SET UP THE GRAPH ######
@@ -93,26 +92,21 @@ def should_continue(state):
 # Define the function to execute tools
 def call_tool(state):
     messages = state["messages"]
-    # We know the last message involves at least one tool call
     last_message = messages[-1]
 
-    # We loop through all tool calls and append the message to our message log
-    for tool_call in last_message.additional_kwargs["tool_calls"]:
-        action = ToolInvocation(
-            tool=tool_call["function"]["name"],
-            tool_input=json.loads(tool_call["function"]["arguments"]),
-            id=tool_call["id"],
-        )
+    if "tool_calls" in last_message.additional_kwargs:
+        for tool_call in last_message.additional_kwargs["tool_calls"]:
+            tool_name = tool_call["function"]["name"]
+            tool_input = json.loads(tool_call["function"]["arguments"])
 
-        # We call the tool_executor and get back a response
-        response = tool_executor.invoke(action)
-        # We use the response to create a FunctionMessage
-        function_message = ToolMessage(
-            content=str(response), name=action.tool, tool_call_id=tool_call["id"]
-        )
+            tool = next(t for t in agent_tools if t.name == tool_name)
+            response = tool.invoke(tool_input)
 
-        # Add the function message to the list
-        messages.append(function_message)
+            function_message = ToolMessage(
+                content=str(response), name=tool_name, tool_call_id=tool_call["id"]
+            )
+
+            messages.append(function_message)
     return {"messages": messages}
 
 
@@ -131,6 +125,7 @@ def call_memory_extractor(state):
     response = memory_extractor.memory_extractor_runnable(
         {"messages": last_message, "memories": memories}
     )
+    print(f"call_memory_extractor output: {response.content}")
     return {"extracted_knowledge": f"{response.content}"}
 
 def call_extractor_reviewer(state):
@@ -229,4 +224,5 @@ graph.add_edge("action", END)
 
 # We compile the entire workflow as a runnable
 app = graph.compile()
+
 
