@@ -12,28 +12,30 @@
 4. Upload the audio file by clicking on the green upload button.
 5. Install ffmpeg on your laptop
 
-   # on Ubuntu or Debian
+   on Ubuntu or Debian
 
    sudo apt update && sudo apt install ffmpeg
 
-   # on Arch Linux
+   on Arch Linux
 
    sudo pacman -S ffmpeg
 
-   # on MacOS using Homebrew (https://brew.sh/)
+   on MacOS using Homebrew (https://brew.sh/)
 
    brew install ffmpeg
 
-   # on Windows using Chocolatey (https://chocolatey.org/)
+   on Windows using Chocolatey (https://chocolatey.org/)
 
    choco install ffmpeg
 
-   # on Windows using Scoop (https://scoop.sh/)
+   on Windows using Scoop (https://scoop.sh/)
 
    scoop install ffmpeg
 
 6. Run main.py script.
 7. See beautiful transcription of your audio file in the console.
+
+Note: Currently we have not fully incorporated the perception module to work with the rest of BingeBuddy. This is because we haven't had the time yet to set up a proper interface for the user to interact with BingeBuddy. This will be done soon!
 
 ## Setting Up MongoDB for Development
 
