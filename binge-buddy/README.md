@@ -34,6 +34,7 @@
 
 6. Run main.py script.
 7. See beautiful transcription of your audio file in the console.
+
 Note: Currently we have not fully incorporated the perception module to work with the rest of BingeBuddy. This is because we haven't had the time yet to set up a proper interface for the user to interact with BingeBuddy. This will be done soon!
 
 ## Setting Up MongoDB for Development
