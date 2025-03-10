@@ -2,7 +2,9 @@ import requests
 from langchain.llms.base import LLM
 from langchain.schema import PromptValue  # Import ChatPromptValue
 
+
 class OllamaLLM(LLM):  # Inherit from the LLM base class
+    #  model: str = "llama2:7b"  # Default model
     model: str = "deepseek-r1:8b"  # Default model
     temperature: float = 0.0  # Default temperature
 

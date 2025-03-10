@@ -35,6 +35,9 @@ class Message:
     def __repr__(self):
         return f"Message(user_id={self.user_id}, session_id={self.session_id}, role={self.role}, timestamp={self.timestamp})"
 
+    def __str__(self):
+        return f"Message(role:{self.role}, content:{self.content})"
+
     def to_langchain_message(self) -> Union[HumanMessage, SystemMessage]:
         """
         Converts the current message object to a LangChain-compatible message

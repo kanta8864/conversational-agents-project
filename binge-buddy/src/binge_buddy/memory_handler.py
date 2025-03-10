@@ -139,9 +139,9 @@ def call_memory_extractor(state):
     last_message = messages[-1]
     message_log = MessageLog(user_id="user", session_id="session")
     memory_extractor = MemoryExtractor(llm=llm, message_log=message_log)
-    response = memory_extractor.memory_extractor_runnable.invoke(
+    response = utils.remove_think_tags(memory_extractor.memory_extractor_runnable.invoke(
         {"messages": [last_message]}
-    )
+    ))
     response = response.split("Memory Extractor Result:", 1)[-1].strip()
     return {"extracted_knowledge": f"{response}"}
 
@@ -152,9 +152,9 @@ def call_extractor_reviewer(state):
     extracted_knowledge = state["extracted_knowledge"]
     message_log = MessageLog(user_id="user", session_id="session")
     memory_reviewer = ExtractorReviewer(llm=llm, message_log=message_log)
-    response = memory_reviewer.memory_reviewer_runnable.invoke(
+    response =utils.remove_think_tags( memory_reviewer.memory_reviewer_runnable.invoke(
         {"user_message": [last_message], "extracted_knowledge": extracted_knowledge}
-    )
+    ))
     return {
         "extractor_valid": "valid" if "APPROVED" in response else f"invalid: {response}"
     }
@@ -163,12 +163,10 @@ def call_extractor_reviewer(state):
 def call_memory_aggregator(state):
     memories = state.get("memories", [])
     extracted_knowledge = state["extracted_knowledge"]
-    print("memories", memories)
-    print("extracted knowledge", extracted_knowledge)
     memory_aggregator = MemoryAggregator(llm=llm)
-    response = memory_aggregator.run(
+    response = utils.remove_think_tags(memory_aggregator.run(
         existing_memories=memories, extracted_knowledge=extracted_knowledge
-    )
+    ))
     response = response.split("Aggregation Result:", 1)[-1].strip()
     return {"aggregated_memory": f"{response}"}
 
@@ -178,12 +176,11 @@ def call_aggregator_reviewer(state):
     extracted_knowledge = state["extracted_knowledge"]
     aggregated_memory = state["aggregated_memory"]
     aggregator_reviewer = AggregatorReviewer(llm=llm)
-    response = aggregator_reviewer.run(
+    response = utils.remove_think_tags(aggregator_reviewer.run(
         existing_memories=memories,
         extracted_knowledge=extracted_knowledge,
         aggregated_memory=aggregated_memory,
-    )
-    print(response)
+    ))
     response = response.split("Aggregation Result:", 1)[-1].strip()
     return {
         "aggregator_valid": (

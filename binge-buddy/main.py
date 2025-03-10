@@ -1,10 +1,12 @@
 from pathlib import Path
-
-from langchain_core.messages import HumanMessage
-
+import sys
 from binge_buddy.memory_db import MemoryDB
 from binge_buddy.memory_handler import app
+from binge_buddy.message import Message
+from binge_buddy.message_log import MessageLog
 from binge_buddy.perception_agent import PerceptionAgent
+from binge_buddy.conversational_agent import ConversationalAgent
+from binge_buddy.ollama import OllamaLLM
 
 
 def run_perception():
@@ -37,12 +39,6 @@ def run_perception():
 
 
 def main():
-    # Example message to analyze
-    current_message = "I love watching sci-fi movies like The Matrix!"
-
-    # Attempt to pass perception message
-    # current_message = run_perception()
-
     # Attempt to connect to db
     db = MemoryDB()
     sample_memory = {
@@ -61,24 +57,45 @@ def main():
 
     memories = db.find_one(collection_name="memories", query={"name": "Kanta"})
 
-    # Ensure the input is structured correctly, with 'messages' being a list
-    inputs = {
-        "messages": [HumanMessage(content=current_message)],
-        "memories": memories["memories"],
-    }
+    llm = OllamaLLM()
+    message_log = MessageLog(user_id="user", session_id="session")
 
-    # Run the whole memory pipeline with langgraph
-    for output in app.with_config({"run_name": "Memory"}).stream(inputs):
-        # Output from the graph nodes (app stream processing)
-        for key, value in output.items():
-            print(f"Output from node '{key}':")
-            print("---")
-            print(value)
-        print("\n---\n")
+    conversational_agent = ConversationalAgent(llm, message_log)
+
+    while True:
+
+        user_message = input("Type your input:")
+
+        if user_message == "/bye":
+            sys.exit()
+
+        user_message = Message(
+            role="user", content=user_message, user_id="user", session_id="session"
+        )
+
+        message_log.add_message(user_message)
+
+        response = conversational_agent.run()
+
+        print("\n Response:", response, "\n")
+
+    # result, emotion_result = run_perception()
+
+    # for (message,emotion) in zip(result, emotion_result):
+    #     # Ensure the input is structured correctly, with 'messages' being a list
+    #     inputs = {
+    #         "messages": [HumanMessage(content=message)],
+    #         "memories": memories["memories"],
+    #     }
+    #     # Run the whole memory pipeline with langgraph
+    #     for output in app.with_config({"run_name": "Memory"}).stream(inputs):
+    #         # Output from the graph nodes (app stream processing)
+    #         for key, value in output.items():
+    #             print(f"Output from node '{key}':")
+    #             print("---")
+    #             print(value)
+    #         print("\n---\n")
 
 
 if __name__ == "__main__":
     main()
-    # result, emotion_result = run_perception()
-    # print(result)
-    # print(emotion_result)

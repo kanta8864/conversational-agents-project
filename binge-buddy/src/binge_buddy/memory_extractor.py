@@ -1,6 +1,3 @@
-import json
-import re
-from sys import stderr
 from typing import Dict, List, Optional
 
 from langchain.prompts import (
@@ -86,16 +83,15 @@ class MemoryExtractor:
         When you receive a message, you perform a sequence of steps consisting of:
 
         1. Analyze the most recent Human message for new information. You will see multiple messages for context, but we are only looking for new information in the most recent message.  
-        2. Extract new information and return new memories from this information. We can have multiple pieces of information so we can also get multiple memories.
+        2. Extract new information and return new memories from this information. We can have multiple pieces of information so we can also get multiple memories. 
 
         I will tip you $20 if you are perfect, and I will fine you $40 if you miss any important information.
 
-        Take a deep breath, think step by step and in the end simply return a list of new information extracted. The information needs to resemble a memory, not
-        values. Example of a memory is "Likes to watch sci-fi and action". Be concrete with your final result. 
-        Always begin your response with "Memory Extractor Result:" and list out all the memories as an array in the format 
+        Take a deep breath, think step by step and in the end simply return a list of new information extracted under the title "Memory Extractor Result:" Be concrete with your final result.
+        List out all the memories as a json array in the format 
             [
-                    "memory": ...,
-                    "memory": ...,
+                { "memory" : ...},
+                { "memory" : ...},
                 ...
             ]
         """
@@ -103,18 +99,16 @@ class MemoryExtractor:
             [
                 SystemMessagePromptTemplate.from_template(self.system_prompt_initial),
                 MessagesPlaceholder(variable_name="messages"),
-                (
-                    "system",
-                    "Always begin your response with 'Memory Extractor Result:' and list out all the memories as an array",
-                ),
             ]
         )
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
         self.memory_extractor_runnable = self.prompt | self.llm_runnable
 
-    def run(self) -> Optional[str]:
+    def format_memories(self, response: str) -> List[Dict]: ...
+
+    def run(self) -> Optional[List[Dict]]:
         """
-        Analyzes the current message to extract useful information for long-term memory.
+        Analyzes the current message to check if it contains useful information for long-term memory.
 
         :return: List of dictionary objects with memories.
         """
@@ -127,6 +121,7 @@ class MemoryExtractor:
             if message.role == "user":
                 messages.append(message.to_langchain_message())
 
+        print(messages)
         # Run the pipeline and get the response
         response = utils.remove_think_tags(
             self.memory_extractor_runnable.invoke({"messages": messages})
