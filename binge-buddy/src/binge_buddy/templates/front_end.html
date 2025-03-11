@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Recorder</title>
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Voice Recorder and Chat</title>
+        <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
@@ -42,23 +42,112 @@
             font-size: 16px;
             width: 300px;
         }
-    </style>
-</head>
-<body>
-    <h1>Voice Recorder</h1>
-    <button id="recordBtn" class="record-btn">🎤</button>
-    <div class="audio-container" id="audioContainer"></div>
-    <div class="input-container">
-        <label for="fileName">Enter a name for your audio file:</label>
-        <input type="text" id="fileName" placeholder="My Audio File">
-    </div>
-    <button id="uploadBtn" class="upload-btn" style="display:none;">Upload Audio</button>
+        /* Chat interface styling */
+        .chat-container {
+            margin-top: 30px;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            height: 400px; /* Increased height */
+            display: flex;
+            flex-direction: column;
+        }
+        .messages {
+            max-height: 350px; /* Limit the message container height */
+            overflow-y: auto;
+            margin-bottom: 20px;
+            flex-grow: 1; /* Allow messages to take up available space */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start; /* Align all child elements to the left by default */
+        }
 
-    <script>
+        .messages p {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 60%; /* Limit the width of the message bubbles */
+            word-wrap: break-word; /* Ensure long words don't overflow */
+        }
+
+        .user-msg {
+            text-align: left;
+            background-color: #d1e7ff;
+            align-self: flex-start; /* Align to the left */
+        }
+
+        .agent-msg {
+            text-align: left;
+            background-color: #e8e8e8;
+            align-self: flex-end; /* Align to the right */
+        }
+
+        .chat-input-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;  /* Ensure the container uses the full available width */
+        }
+
+        .chat-input-container input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            flex-grow: 1;  /* Allow input field to expand based on content */
+            max-width: 80%;  /* Prevent it from growing too large */
+            min-width: 120px; /* Minimum width for the input field */
+        }
+
+        .chat-input-container button {
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;  /* Add some space between the input and button */
+        }
+
+        .chat-input-container button:disabled {
+            background-color: #ccc;
+        }
+
+    </style>
+    </head>
+    <body>
+        <h1>Voice Recorder and Chat</h1>
+
+        <!-- Voice Recorder Section -->
+        <button id="recordBtn" class="record-btn">🎤</button>
+        <div class="audio-container" id="audioContainer"></div>
+        <div class="input-container">
+            <label for="fileName">Enter a name for your audio file:</label>
+            <input type="text" id="fileName" placeholder="My Audio File">
+        </div>
+        <button id="uploadBtn" class="upload-btn" style="display:none;">Upload
+            Audio</button>
+
+        <!-- Chat Interface Section -->
+        <div class="chat-container">
+            <div class="messages" id="messages"></div>
+            <div class="chat-input-container">
+                <input type="text" id="userMessage"
+                    placeholder="Type your message..." disabled />
+                <button id="sendMessageBtn" disabled>Send</button>
+            </div>
+        </div>
+
+        <script>
         let mediaRecorder;
         let audioChunks = [];
         let recordedAudioBlob;
-
+        
         document.getElementById("recordBtn").addEventListener("click", async function() {
             if (!mediaRecorder || mediaRecorder.state === "inactive") {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -105,6 +194,45 @@
                 alert("Failed to upload audio.");
             }
         });
+
+        // Chat Section Logic
+        let isMessageBeingSent = false;
+
+        document.getElementById("sendMessageBtn").addEventListener("click", async function() {
+            const userMessage = document.getElementById("userMessage").value;
+            if (!userMessage || isMessageBeingSent) return;
+
+            // Display user message in the chat
+            const messagesContainer = document.getElementById("messages");
+            messagesContainer.innerHTML += `<p class="user-msg">${userMessage}</p>`;
+            document.getElementById("userMessage").value = ''; // Clear the input field
+            isMessageBeingSent = true;
+            document.getElementById("sendMessageBtn").disabled = true;
+            document.getElementById("userMessage").disabled = true;
+
+            // Send message to the backend via POST request
+            const response = await fetch("/send_message", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ message: userMessage })
+            });
+            const response_text = await response.json()
+            console.log(response_text)
+
+            // Display agent response in the chat
+            messagesContainer.innerHTML += `<p class="agent-msg">${response_text.response}</p>`;
+            isMessageBeingSent = false;
+            document.getElementById("sendMessageBtn").disabled = false;
+            document.getElementById("userMessage").disabled = false;
+        });
+
+        // Enable the input and send button after the page loads
+        window.onload = () => {
+            document.getElementById("userMessage").disabled = false;
+            document.getElementById("sendMessageBtn").disabled = false;
+        };
     </script>
-</body>
+    </body>
 </html>
