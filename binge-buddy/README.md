@@ -1,9 +1,18 @@
-## Steps needed to run deepseek locally
+## Steps to run the temporary frontend
+1. Currently our project is still under development, so main.py doesn't work.
+2. To run the project please follow steps 1 and 2 mentioned below.
+3. After everything has been set up correctly, run the front_end.py script. This can be done by going to `binge_budy` folder and run `python front_end.py`
+4. Either type in a text in the text box and press send or record audio files by clicking on the microphone button and upload the file by clicking on the green upload button. 
+5. You should be able to see our agent's response. Note that our agent is currently very slow and the agent will response in 20-30 seconds or so with its recommendation. PS: It currently only runs on the message log (so short term memory), we haven't had the chance yet to incorporate the long term memory properly.
+
+
+## 1. Steps needed to run deepseek locally
+
 1. Install Opalla
 2. Pull and run whatever model you want to run. Use the ollama pull command to download the DeepSeek model you want to use (e.g. `ollama pull deepseek-r1:8b`) and then run the model with (e.g. `ollama run deepseek-r1:8b`)
 3. Start Opalla server with `ollama serve` to expose the model as an API
 
-## How you can interact with our agent BingeBuddy
+## 2. Install ffmpeg for perception module
 1. Make sure to install ffmpeg on your laptop for perception module to work. 
 
    on Ubuntu or Debian
@@ -25,13 +34,10 @@
    on Windows using Scoop (https://scoop.sh/)
 
    scoop install ffmpeg
-2. Run the front_end.py script. This can be done by going to `binge_budy` folder and run `python front_end.py`
-3. Either type in a text in the text box and press send or record audio files by clicking on the microphone button and uploading the file by clicking on the green upload button. 
-4. You should be able to see our agent's response
 
 # The following can be ignored for Lab Assignment 2 because DB is not yet integrated in our pipeline unfortunately. 
 
-## Setting Up MongoDB for Development
+## 3. Setting Up MongoDB for Development
 
 1. Copy `.env.example` to `.env`:
    ```bash
