@@ -90,8 +90,8 @@ class MemoryExtractor:
         Take a deep breath, think step by step and in the end simply return a list of new information extracted under the title "Memory Extractor Result:" Be concrete with your final result.
         List out all the memories as a json array in the format 
             [
-                { "memory" : ...},
-                { "memory" : ...},
+                "memory" : ...,
+                "memory" : ...,
                 ...
             ]
         """
@@ -156,4 +156,3 @@ if __name__ == "__main__":
     response = memory_extractor.run()
 
     print(response)
-

@@ -5,6 +5,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Voice Recorder and Chat</title>
         <style>
+        .processing-indicator, .agent-typing-indicator {
+            font-size: 16px;
+            color: #888;
+            margin-top: 10px;
+        }
         body {
             font-family: Arial, sans-serif;
             text-align: center;
@@ -33,6 +38,9 @@
             border: none;
             cursor: pointer;
             font-size: 16px;
+        }
+        .upload-btn:disabled {
+            background-color: #ccc;
         }
         .input-container {
             margin-top: 20px;
@@ -122,8 +130,7 @@
     </head>
     <body>
         <h1>Voice Recorder and Chat</h1>
-
-        <!-- Voice Recorder Section -->
+        <h3>You can either send a message through text or voice note</h3>
         <button id="recordBtn" class="record-btn">🎤</button>
         <div class="audio-container" id="audioContainer"></div>
         <div class="input-container">
@@ -132,10 +139,17 @@
         </div>
         <button id="uploadBtn" class="upload-btn" style="display:none;">Upload
             Audio</button>
-
-        <!-- Chat Interface Section -->
         <div class="chat-container">
             <div class="messages" id="messages"></div>
+
+            <!-- Processing Indicator for Audio Transcription -->
+            <div id="processingIndicator" class="processing-indicator"
+                style="display: none;">Processing audio...</div>
+
+            <!-- Agent Typing Indicator -->
+            <div id="agentTypingIndicator" class="agent-typing-indicator"
+                style="display: none;">Agent is typing...</div>
+
             <div class="chat-input-container">
                 <input type="text" id="userMessage"
                     placeholder="Type your message..." disabled />
@@ -168,6 +182,7 @@
                     document.getElementById("audioContainer").appendChild(audio);
                     audioChunks = [];
                     document.getElementById("uploadBtn").style.display = 'block'; // Show upload button
+                    document.getElementById("uploadBtn").disabled = false; // Enable upload button
                 };
 
                 mediaRecorder.start();
@@ -179,20 +194,50 @@
         });
 
         document.getElementById("uploadBtn").addEventListener("click", async function() {
+            document.getElementById("uploadBtn").disabled = true;
             const fileName = document.getElementById("fileName").value || "recorded_audio"; // Default name if not provided
             const formData = new FormData();
             formData.append("audio", recordedAudioBlob, `${fileName}.wav`);
 
-            const response = await fetch("/upload", {
-                method: "POST",
-                body: formData
+            document.getElementById("processingIndicator").style.display = "block";
+            document.getElementById("uploadBtn").disabled = true; 
+
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData 
             });
 
-            if (response.ok) {
-                alert("Audio uploaded successfully!");
-            } else {
-                alert("Failed to upload audio.");
-            }
+            const data = await response.json();
+            const transcribedText = data.transcribed_text;
+
+            console.log("Transcribed text:", transcribedText);
+            const messagesContainer = document.getElementById("messages");
+            messagesContainer.innerHTML += `<p class="user-msg">${transcribedText}</p>`;
+
+            document.getElementById("uploadBtn").disabled = false;
+
+
+            // Hide the processing indicator once transcription is done
+            document.getElementById("processingIndicator").style.display = "none";
+
+            // Send the transcribed text for processing by the agent
+            document.getElementById("agentTypingIndicator").style.display = "block"; // Show agent typing indicator
+
+            const responseText = await fetch("/send_message", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ text: transcribedText }) // Use transcribed text here
+            });
+
+            const agentResponse = await responseText.json();
+            
+            console.log("Agent response:", agentResponse.response);
+            messagesContainer.innerHTML += `<p class="agent-msg">${agentResponse.response}</p>`;
+
+            // Hide the agent typing indicator once the response is received
+            document.getElementById("agentTypingIndicator").style.display = "none";
         });
 
         // Chat Section Logic
@@ -210,14 +255,17 @@
             document.getElementById("sendMessageBtn").disabled = true;
             document.getElementById("userMessage").disabled = true;
 
-            // Send message to the backend via POST request
+            // Show agent typing indicator while waiting for response
+            document.getElementById("agentTypingIndicator").style.display = "block";
+
             const response = await fetch("/send_message", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ message: userMessage })
+                body: JSON.stringify({ text: userMessage })
             });
+
             const response_text = await response.json()
             console.log(response_text)
 
@@ -226,6 +274,9 @@
             isMessageBeingSent = false;
             document.getElementById("sendMessageBtn").disabled = false;
             document.getElementById("userMessage").disabled = false;
+
+            // Hide typing indicator after receiving the response
+            document.getElementById("agentTypingIndicator").style.display = "none";
         });
 
         // Enable the input and send button after the page loads
