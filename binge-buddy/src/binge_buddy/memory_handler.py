@@ -33,7 +33,8 @@ class AddKnowledge(BaseModel):
         description="If updating, the complete, exact phrase of the existing knowledge to modify",
     )
     attribute: Attribute = Field(
-        ..., description="Attribute that this knowledge belongs to"
+        ...,
+        description="Attribute that this knowledge belongs to"
     )
     action: Action = Field(
         ...,
@@ -192,7 +193,7 @@ def call_aggregator_reviewer(state):
 # Initialize a new graph
 graph = StateGraph(AgentState)
 
-# Define the two "Nodes"" we will cycle between
+# Define the "Nodes"" we will cycle between
 graph.add_node("sentinel", call_memory_sentinel)
 graph.add_node("memory_extractor", call_memory_extractor)
 graph.add_node("memory_reviewer", call_extractor_reviewer)
@@ -230,7 +231,7 @@ graph.add_conditional_edges(
     "memory_reviewer",
     lambda state: (
         "memory_aggregator"
-        if "valid" in state["extractor_valid"]
+        if "APPROVED" in state["extractor_valid"]
         else "memory_extractor"
     ),
 )
@@ -249,7 +250,9 @@ graph.add_conditional_edges(
 graph.add_conditional_edges(
     "aggregator_reviewer",
     lambda state: (
-        "action" if "valid" in state["aggregator_valid"] else "memory_aggregator"
+        "action"
+        if "APPROVED" in state["aggregator_valid"]
+        else "memory_aggregator"
     ),
 )
 
