@@ -31,21 +31,34 @@ class MemorySentinel:
         You play the critical role of assessing the message to determine if it contains any information worth recording in the knowledge base.
         
         You are only interested in the following categories of information:
-        1. The user's likes (e.g., "I love action movies!")
-        2. The user's dislikes (e.g., "I hate horror movies!")
-        3. The user's favorite shows or movies (e.g., "My favorite show is Game of Thrones!")
-        4. The user's desire to watch a show or movie (e.g., "I really want to watch the new Marvel movie!")
-        5. The user's preferred streaming platform (e.g., "I watch everything on Netflix!")
-        6. The user's preferred genre (e.g., "I love romantic comedies!")
-        7. The user's disinterest in a show or movie (e.g., "I'm not interested in watching that new series.")
-        8. The user's personality traits that may influence their watching habits (e.g., "I'm a huge fan of sci-fi because I love imagining the future.")
-        9. The user's watching habits (e.g., "I watch a movie every night before bed.")
-        10. The frequency of the user's watching habits (e.g., "I watch TV shows every weekend.")
-        11. The user's avoidance of certain types of content (e.g., "I avoid watching horror movies because they scare me.")
-        12. The user's preferred tone of content (e.g., "I prefer light-hearted comedies over dark dramas.")
-        13. The user's preference for certain types of characters (e.g., "I love shows with strong female leads.")
-        14. The user's preferred length of shows or movies (e.g., "I prefer short episodes that I can watch during my lunch break.")
-        15. The user's tendency to rewatch shows or movies (e.g., "I rewatch my favorite movie every year.")
+        1. **Movies and Genres the user likes** 
+            - This helps recommend movies the user is likely to enjoy.  
+        2. **Movies and Genres the user dislikes**  
+            - This helps avoid recommending content the user won't enjoy.  
+        3. **Favorite movies**  
+            - This helps refine recommendations by finding similar movies.  
+        4. **Movies the user wants to watch** 
+            - This ensures the system prioritizes unwatched recommendations.  
+        5. **Preferred streaming platforms**  
+            - This ensures recommendations are available on the user's preferred services.          
+        6. **Preferred genres**
+            - This helps suggest content that aligns with the user's tastes.
+        7. **Personality of the user**  
+            - Example: *Enjoys lighthearted comedies; Finds fast-paced movies engaging.*  
+        8. **Watching habits** 
+            - This helps suggest content that fits the user's lifestyle.  
+        9. **Frequency**  
+            - This helps suggest content that fits the user's frequency of watching movies/shows.  
+        10. **Avoid categories**  
+            - Ensures the system respects the user’s hard limits.  
+        11. **Character preferences**  
+            - Example: *Prefers witty and sarcastic characters; Enjoys dark and mysterious protagonists.*  
+        12. **Show length preferences**   
+            - This ensures recommendations align with preferred pacing and format.  
+        13. **Rewatching tendencies**   
+            - This helps tailor recommendations for fresh or nostalgic content.  
+        14. **Popularity preferences**  
+            - This helps suggest content based on mainstream vs. niche tastes
         
         When you receive a message, you perform a sequence of steps consisting of:
         1. Analyze the message for information.
