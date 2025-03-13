@@ -17,9 +17,10 @@ from binge_buddy.ollama import OllamaLLM
 class MemoryExtractor:
     def __init__(self, llm: OllamaLLM, message_log: MessageLog):
         """
-        Initializes the MemorySentinel agent.
+        Initializes the Memory Extractor.
 
         :param llm: The LLM model to use (e.g., OllamaLLM).
+        :param message_log: The message log to track the conversation history.
         """
         self.llm = llm
         self.message_log = message_log
@@ -38,46 +39,46 @@ class MemoryExtractor:
 
         You are only interested in the following categories of information:
 
-        1. **Movies and Genres the user likes** (e.g. Likes sci-fi; Enjoyed Inception)  
+        LIKES: **Movies and Genres the user likes** 
         - This helps recommend movies the user is likely to enjoy.  
 
-        2. **Movies and Genres the user dislikes** (e.g. Dislikes horror; Didn't enjoy The Conjuring)  
+        DISLIKES: **Movies and Genres the user dislikes**  
         - This helps avoid recommending content the user won't enjoy.  
 
-        3. **Favorite movies** (e.g. Favorite movie is The Matrix)  
+        FAVORITE: **Favorite movies**  
         - This helps refine recommendations by finding similar movies.  
 
-        4. **Movies the user wants to watch** (e.g. Wants to watch Oppenheimer)  
+        WANTS_TO_WATCH: **Movies the user wants to watch** 
         - This ensures the system prioritizes unwatched recommendations.  
 
-        5. **Preferred streaming platforms** (e.g. Watches mostly on Netflix and Hulu)  
+        PLATFORM: **Preferred streaming platforms**  
         - This ensures recommendations are available on the user's preferred services.  
+        
+        GENRE: **Preferred genres**
+        - This helps suggest content that aligns with the user's tastes.
 
-        6. **Personality of the user**  
+        PERSONALITY: **Personality of the user**  
         - Example: *Enjoys lighthearted comedies; Finds fast-paced movies engaging.*  
 
-        7. **Watching habits** (e.g. Prefers binge-watching TV shows over time)  
+        WATCHING_HABIT: **Watching habits** 
         - This helps suggest content that fits the user's lifestyle.  
 
-        8. **Frequency** (e.g. Watches movies/shows two days a week for about 2 hours each)  
+        FREQUENCY: **Frequency**  
         - This helps suggest content that fits the user's frequency of watching movies/shows.  
 
-        9. **Avoid categories** (e.g. Avoids anything with excessive gore; Doesn't like political dramas)  
+        AVOID: **Avoid categories**  
         - Ensures the system respects the user’s hard limits.  
 
-        10. **Tone**  
-        - tone of the user's messages to understand if the user is frustrated, happy etc.  
-
-        11. **Character preferences**  
+        CHARACTER_PREFERENCES: **Character preferences**  
         - Example: *Prefers witty and sarcastic characters; Enjoys dark and mysterious protagonists.*  
 
-        12. **Show length preferences** (e.g. Prefers miniseries; Enjoys long TV series with deep character development)  
+        SHOW_LENGTH: **Show length preferences**   
         - This ensures recommendations align with preferred pacing and format.  
 
-        13. **Rewatching tendencies** (e.g. Frequently rewatches Friends; Rarely rewatch movies)  
+        REWATCHER: **Rewatching tendencies**   
         - This helps tailor recommendations for fresh or nostalgic content.  
 
-        14. **Popularity preferences** (e.g. Prefers cult classics over mainstream hits)  
+        POPULARITY: **Popularity preferences**  
         - This helps suggest content based on mainstream vs. niche tastes.  
 
         When you receive a message, you perform a sequence of steps consisting of:
@@ -95,6 +96,12 @@ class MemoryExtractor:
                 ...
             ]
         """
+
+        #         DISINTERESTED: **Genres the user is disinterested in**
+        #         - This helps avoid recommending content the user won't enjoy.
+        #         TONE: **Tone**
+        #         - tone of the user's messages to understand if the user is frustrated, happy etc.
+
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessagePromptTemplate.from_template(self.system_prompt_initial),

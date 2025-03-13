@@ -15,9 +15,10 @@ from binge_buddy.ollama import OllamaLLM
 class ExtractorReviewer:
     def __init__(self, llm: OllamaLLM, message_log: MessageLog):
         """
-        Initializes the MemorySentinel agent.
+        Initializes the Extractor Reviewer.
 
         :param llm: The LLM model to use (e.g., OllamaLLM).
+        :param message_log: The message log to track the conversation history.
         """
         self.llm = llm
 
@@ -40,6 +41,14 @@ class ExtractorReviewer:
         
         2. **Check for Completeness**  
         - Ensure all relevant details from the user's message are captured.
+        
+        3. **Check if format is correct**
+        - Ensure the format of the memory is correct. So in the form of a List of all the memories as a json array in the format 
+            [
+                "memory" : ...,
+                "memory" : ...,
+                ...
+            ]
 
         ---
 
@@ -53,10 +62,10 @@ class ExtractorReviewer:
 
         ### **Output Format**
         If the new memory is **correct**, respond with:
-        ✅ APPROVED  
+        APPROVED  
 
         If the new memory **needs fixing**, respond with:
-        ❌ REJECTED  
+        REJECTED  
         **Reason** Give reasons for flagging new aggreagated memory. 
         """
 
@@ -98,7 +107,7 @@ if __name__ == "__main__":
         )
     )
 
-    new_memory = "Loves action movies and dislikes slow-paced dramas."
+    new_memory = "Loves action movies and likes slow-paced dramas."
 
     response = memory_reviewer.run(new_memory)
 

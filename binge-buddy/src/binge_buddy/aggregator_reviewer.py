@@ -60,10 +60,10 @@ class AggregatorReviewer:
 
         ### **Output Format**
         If the **aggregated memory** is **correct**, respond with:
-        ✅ **APPROVED**  
+        APPROVED
 
         If the **aggregated memory** is incorrect, respond with:
-        ❌ **REJECTED**  
+        REJECTED
         **Reason:** Clearly explain why the aggregated memory is incorrect, specifying whether it introduces hallucinations, omits crucial details, or alters existing knowledge incorrectly.
         """
 
@@ -92,28 +92,82 @@ if __name__ == "__main__":
     memory_reviewer = AggregatorReviewer(llm=llm)
 
     existing_memories = """
-    - Likes sci-fi movies
-    - Favorite movie is The Matrix
-    - Prefers Netflix for streaming
+    [
+        "memory" : {
+            "attribute" : FAVORITE,
+            "value" : "Star Wars"
+        },
+        "memory" : {
+            "attribute" : LIKES,
+            "value" : "Sci-fi"
+        }
+    ]
     """
 
-    extracted_knowledge = """
-    - Likes horror movies
-    - Favorite movie is Tonari No Totoro
-    """
+    extracted_knowledge = """[
+        "memory" : "Enjoys Inception",
+        "memory" : "Wants to watch Oppenheimer next",
+        "memory" : "Favorite movie is Inception",
+        "memory" : "Likes sci-fi",
+        "memory" : "Likes crime thrillers",
+        "memory" : "Enjoys comedies",
+        "memory" : "Dislikes political dramas"
+    ]"""
 
-    aggregated_memory = """
-    1. **Movies and Genres liked**
-       - Likes sci-fi movies
-       - Likes horror movies
-
-    2. **Favorite movies**
-       - Favorite movie is The Matrix
-       - Favorite movie is Tonari No Totoro
-
-    3. **Preferred streaming platforms**
-       - Prefers Netflix for streaming
-    """
+    aggregated_memory = """[
+        {
+            "memory": [
+                {
+                    "attribute": "FAVORITE",
+                    "value": "The Dark Knight"
+                },
+                {
+                    "attribute": "FAVORITE",
+                    "value": "Inception"
+                }
+            ]
+        },
+        {
+            "memory": [
+                {
+                    "attribute": "LIKES",
+                    "value": "Dramas"
+                },
+                {
+                    "attribute": "LIKES",
+                    "value": "Thrillers"
+                },
+                {
+                    "attribute": "LIKES",
+                    "value": "Sci-fi"
+                },
+                {
+                    "attribute": "LIKES",
+                    "value": "Crime Thrillers"
+                },
+                {
+                    "attribute": "LIKES",
+                    "value": "Comedies"
+                }
+            ]
+        },
+        {
+            "memory": [
+                {
+                    "attribute": "WANTS_TO_WATCH",
+                    "value": "Oppenheimer"
+                }
+            ]
+        },
+        {
+            "memory": [
+                {
+                    "attribute": "DISLIKES",
+                    "value": "Political Dramas"
+                }
+            ]
+        }
+    ]"""
 
     response = memory_reviewer.run(
         existing_memories=existing_memories,
