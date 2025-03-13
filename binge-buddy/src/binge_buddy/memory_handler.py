@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from binge_buddy import utils
 from binge_buddy.aggregator_reviewer import AggregatorReviewer
-from binge_buddy.enums import Action, Category
+from binge_buddy.enums import Action, Attribute
 from binge_buddy.extractor_reviewer import ExtractorReviewer
 from binge_buddy.memory_aggregator import MemoryAggregator
 from binge_buddy.memory_db import MemoryDB
@@ -32,8 +32,8 @@ class AddKnowledge(BaseModel):
         None,
         description="If updating, the complete, exact phrase of the existing knowledge to modify",
     )
-    category: Category = Field(
-        ..., description="Category that this knowledge belongs to"
+    attribute: Attribute = Field(
+        ..., description="Attribute that this knowledge belongs to"
     )
     action: Action = Field(
         ...,
@@ -43,18 +43,18 @@ class AddKnowledge(BaseModel):
 
 def modify_knowledge(
     knowledge: str,
-    category: str,
+    attribute: str,
     action: str,
     knowledge_old: str = "",
 ) -> dict:
-    print("Modifying Knowledge: ", knowledge, knowledge_old, category, action)
+    print("Modifying Knowledge: ", knowledge, knowledge_old, attribute, action)
     # retrieve current knowledge base
     # todo: replace with database retrieval
     memory = {}
-    if category in memory and action == "update":
+    if attribute in memory and action == "update":
         # aggregate old and new knowledge and update memory
         # todo: change this temporary aggreation
-        memory[category] = memory[category].replace(
+        memory[attribute] = memory[attribute].replace(
             knowledge_old, f"{knowledge_old}; {knowledge}"
         )
 
