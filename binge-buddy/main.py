@@ -5,7 +5,7 @@
 # from binge_buddy.message import Message
 # from binge_buddy.message_log import MessageLog
 # from binge_buddy.perception_agent import PerceptionAgent
-# from binge_buddy.conversational_agent import ConversationalAgent
+# from binge_buddy.semantic_agent import SemanticAgent
 # from binge_buddy.ollama import OllamaLLM
 
 
@@ -60,7 +60,7 @@
 #     llm = OllamaLLM()
 #     message_log = MessageLog(user_id="user", session_id="session")
 
-#     conversational_agent = ConversationalAgent(llm, message_log)
+#     semantic_agent = SemanticAgent(llm, message_log)
 
 #     while True:
 
@@ -75,7 +75,7 @@
 
 #         message_log.add_message(user_message)
 
-#         response = conversational_agent.run()
+#         response = semantic_agent.run()
 
 #         print("\n Response:", response, "\n")
 
