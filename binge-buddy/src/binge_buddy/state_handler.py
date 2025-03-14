@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Optional, Sequence, TypedDict
+from typing import Dict, Optional, Sequence, TypedDict, List
 
 from langchain.tools import StructuredTool
 from langchain_core.messages import BaseMessage, ToolMessage
@@ -15,8 +15,7 @@ from binge_buddy.memory_db import MemoryDB
 from binge_buddy.memory_extractor import MemoryExtractor
 from binge_buddy.memory_sentinel import MemorySentinel
 from binge_buddy.message_log import MessageLog
-
-from .ollama import OllamaLLM
+from binge_buddy.ollama import OllamaLLM
 
 llm = OllamaLLM()
 # db = MemoryDB()
@@ -41,6 +40,18 @@ class AddKnowledge(BaseModel):
         description="Whether this knowledge is adding a new record, or updating an existing record with aggregated information",
     )
 
+# Define the state of the agent
+class AgentState(TypedDict):
+    # The list of previous messages in the conversation
+    messages: Sequence[BaseMessage]
+    # The long-term memories to remember
+    memories: Dict[str, str]
+    # Whether the information is relevant
+    contains_information: str
+    # The extracted knowledge from the user's message
+    extracted_knowledge: str
+    # The aggregations of the extracted knowledge assigned to an attribute
+    aggregated_memory: str
 
 def modify_knowledge(
     knowledge: str,
@@ -59,7 +70,7 @@ def modify_knowledge(
             knowledge_old, f"{knowledge_old}; {knowledge}"
         )
 
-    return "Modified Knowledge"
+    return {"memories": memory, "response": "Memory updated successfully"}
 
 
 tool_modify_knowledge = StructuredTool.from_function(
@@ -72,23 +83,7 @@ tool_modify_knowledge = StructuredTool.from_function(
 # Set up the agent's tools
 agent_tools = [tool_modify_knowledge]
 
-# tool_executor = lp.ToolExecutor(agent_tools)
-
-
-###### SET UP THE GRAPH ######
-class AgentState(TypedDict):
-    # The list of previous messages in the conversation
-    messages: Sequence[BaseMessage]
-    # The long-term memories to remember
-    memories: Dict[str, str]
-    # Whether the information is relevant
-    contains_information: str
-
-    extracted_knowledge: str
-
-    aggregated_memory: str
-
-
+#region Graph Node Functions
 # Define the function that determines whether to continue or not
 def should_continue(state):
     last_message = state["messages"][-1]
@@ -188,76 +183,105 @@ def call_aggregator_reviewer(state):
             "valid" if "APPROVED" in response else f"invalid: {response}"
         )
     }
+#endregion
+
+class GraphHandler():
+    '''
+    This class is responsible for setting up the graph assigning nodes.
+    '''
+    def __init__(self):
+        self.state = AgentState
+        self.graph = None  # Initialize graph as None
+
+    def run(self):
+        # Initialize a new graph
+        self.graph = StateGraph(self.state)
+
+        # Define the "Nodes"" we will cycle between
+        self.graph.add_node("sentinel", call_memory_sentinel)
+        self.graph.add_node("memory_extractor", call_memory_extractor)
+        self.graph.add_node("memory_reviewer", call_extractor_reviewer)
+        self.graph.add_node("memory_aggregator", call_memory_aggregator)
+        self.graph.add_node("aggregator_reviewer", call_aggregator_reviewer)
+        self.graph.add_node("action", call_tool)
+
+        # Define all our Edges
+
+        # Set the Starting Edge
+        self.graph.set_entry_point("sentinel")
+
+        # We now add Conditional Edges
+        self.graph.add_conditional_edges(
+            "sentinel",
+            lambda x: x["contains_information"],
+            {
+                "yes": "memory_extractor",
+                "no": END,
+            },
+        )
+
+        self.graph.add_conditional_edges(
+            "memory_extractor",
+            lambda state: (
+                "continue" if bool(state["extracted_knowledge"]) else "end"
+            ),  # Ensure to return a string key
+            {
+                "continue": "memory_reviewer",
+                "end": END,
+            },
+        )
+
+        self.graph.add_conditional_edges(
+            "memory_reviewer",
+            lambda state: (
+                "memory_aggregator"
+                if "APPROVED" in state["extractor_valid"]
+                else "memory_extractor"
+            ),
+        )
+
+        self.graph.add_conditional_edges(
+            "memory_aggregator",
+            lambda state: (
+                "continue" if bool(state["aggregated_memory"]) else "end"
+            ),  # Ensure to return a string key
+            {
+                "continue": "aggregator_reviewer",
+                "end": END,
+            },
+        )
+
+        self.graph.add_conditional_edges(
+            "aggregator_reviewer",
+            lambda state: (
+                "action"
+                if "APPROVED" in state["aggregator_valid"]
+                else "memory_aggregator"
+            ),
+        )
+
+        # We now add Normal Edges that should always be called after another
+        self.graph.add_edge("action", END)
+
+        # We compile the entire workflow as a runnable
+        app = self.graph.compile()
+        return app
+
+    def print_nodes(self):
+        if self.graph is None:
+            print("Graph has not been initialized yet.")
+            return
+
+        nodes = self.graph.nodes
+        print("Nodes in the graph:")
+        for node in nodes:
+            print(f"- {node}")
+
+if __name__ == "__main__":
+    handler = GraphHandler()
+    app = handler.run()
+
+    # Print all the nodes in the graph
+    handler.print_nodes()
 
 
-# Initialize a new graph
-graph = StateGraph(AgentState)
-
-# Define the "Nodes"" we will cycle between
-graph.add_node("sentinel", call_memory_sentinel)
-graph.add_node("memory_extractor", call_memory_extractor)
-graph.add_node("memory_reviewer", call_extractor_reviewer)
-graph.add_node("memory_aggregator", call_memory_aggregator)
-graph.add_node("aggregator_reviewer", call_aggregator_reviewer)
-graph.add_node("action", call_tool)
-
-# Define all our Edges
-
-# Set the Starting Edge
-graph.set_entry_point("sentinel")
-
-# We now add Conditional Edges
-graph.add_conditional_edges(
-    "sentinel",
-    lambda x: x["contains_information"],
-    {
-        "yes": "memory_extractor",
-        "no": END,
-    },
-)
-
-graph.add_conditional_edges(
-    "memory_extractor",
-    lambda state: (
-        "continue" if bool(state["extracted_knowledge"]) else "end"
-    ),  # Ensure to return a string key
-    {
-        "continue": "memory_reviewer",
-        "end": END,
-    },
-)
-
-graph.add_conditional_edges(
-    "memory_reviewer",
-    lambda state: (
-        "memory_aggregator"
-        if "APPROVED" in state["extractor_valid"]
-        else "memory_extractor"
-    ),
-)
-
-graph.add_conditional_edges(
-    "memory_aggregator",
-    lambda state: (
-        "continue" if bool(state["aggregated_memory"]) else "end"
-    ),  # Ensure to return a string key
-    {
-        "continue": "aggregator_reviewer",
-        "end": END,
-    },
-)
-
-graph.add_conditional_edges(
-    "aggregator_reviewer",
-    lambda state: (
-        "action"
-        if "APPROVED" in state["aggregator_valid"]
-        else "memory_aggregator"
-    ),
-)
-
-# We now add Normal Edges that should always be called after another
-graph.add_edge("action", END)
-
-# We compile the entire workflow as a runnable
-app = graph.compile()

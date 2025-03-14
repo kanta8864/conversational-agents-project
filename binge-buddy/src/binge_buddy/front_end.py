@@ -8,7 +8,7 @@ from binge_buddy.ollama import OllamaLLM
 from binge_buddy.perception_agent import PerceptionAgent
 from langchain.schema import HumanMessage
 import threading
-from binge_buddy.memory_handler import app as memory_app
+from binge_buddy.state_handler import app as memory_app
 
 
 # Set up the Flask app

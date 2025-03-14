@@ -12,3 +12,5 @@ def remove_think_tags(response: str) -> str:
     clean_response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
 
     return clean_response.strip()
+
+

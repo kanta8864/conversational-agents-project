@@ -93,14 +93,16 @@ if __name__ == "__main__":
 
     existing_memories = """
     [
-        "memory" : {
-            "attribute" : FAVORITE,
-            "value" : "Star Wars"
-        },
-        "memory" : {
-            "attribute" : LIKES,
-            "value" : "Sci-fi"
-        }
+        "memory" : [
+            {
+                "attribute" : FAVORITE,
+                "value" : "Star Wars"
+            },
+            {
+                "attribute" : LIKES,
+                "value" : "Sci-fi"
+            }
+        ]
     ]
     """
 
@@ -114,8 +116,8 @@ if __name__ == "__main__":
         "memory" : "Dislikes political dramas"
     ]"""
 
-    aggregated_memory = """[
-        {
+    aggregated_memory = """
+    [
             "memory": [
                 {
                     "attribute": "FAVORITE",
@@ -124,11 +126,7 @@ if __name__ == "__main__":
                 {
                     "attribute": "FAVORITE",
                     "value": "Inception"
-                }
-            ]
-        },
-        {
-            "memory": [
+                },
                 {
                     "attribute": "LIKES",
                     "value": "Dramas"
@@ -148,25 +146,16 @@ if __name__ == "__main__":
                 {
                     "attribute": "LIKES",
                     "value": "Comedies"
-                }
-            ]
-        },
-        {
-            "memory": [
+                },
                 {
                     "attribute": "WANTS_TO_WATCH",
                     "value": "Oppenheimer"
-                }
-            ]
-        },
-        {
-            "memory": [
+                },
                 {
                     "attribute": "DISLIKES",
                     "value": "Political Dramas"
                 }
             ]
-        }
     ]"""
 
     response = memory_reviewer.run(

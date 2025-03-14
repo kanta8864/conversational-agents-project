@@ -100,17 +100,13 @@ class MemoryAggregator:
         Good luck!! You got this! As a final output, simply give us the aggregated memory entries. 
         Write the final output under the title "Aggregation Result:" in the format, where you assign each memory to its appropriate attribute:
             [
-                {{
-                    "memory" : [
-                        {{"attribute": ... , "value": ...}}
-                        ]
-                }},
-                {{
-                    "memory" : [
-                        {{"attribute": ... , "value": ...}}
-                        ]
-                }},
-                ...
+                "memory" : [
+                    {{"attribute": ... , "value": ...}}
+                    ,
+                    {{"attribute": ... , "value": ...}}
+                    ,
+                    ...
+                    ]
             ]
         """
 
@@ -147,14 +143,16 @@ if __name__ == "__main__":
 
     existing_memories = """
     [
-        "memory" : {
-            "attribute" : FAVORITE,
-            "value" : "Star Wars"
-        },
-        "memory" : {
-            "attribute" : LIKES,
-            "value" : "Sci-fi"
-        }
+        "memory" : [
+            {
+                "attribute" : FAVORITE,
+                "value" : "Star Wars"
+            },
+            {
+                "attribute" : LIKES,
+                "value" : "Sci-fi"
+            }
+        ]
     ]
     """
 
