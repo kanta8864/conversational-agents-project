@@ -29,6 +29,7 @@ packages = [{include = "binge_buddy", from = "src"}]
 pylint = "^3.3.4"
 isort = "^6.0.1"
 black = "^25.1.0"
+pynvim = "^0.5.2"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
