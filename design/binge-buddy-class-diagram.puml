@@ -1,0 +1,58 @@
+@startuml
+
+
+package "Frontend" {
+    class UserInterface {
+        + send_text_message(content: str)
+        + send_audio_message(audio_data: bytes)
+        + receive_message(message: Message)
+    }
+}
+
+package "Perception Module" {
+    class AudioTranscriber {
+        + transcribe_audio(audio_data: bytes): Message
+    }
+
+    class SentimentAnalyzer {
+        + analyze_sentiment(message: Message): Message
+    }
+}
+
+package "Logging System" {
+    class MessageLog {
+        - messages: List<Message>
+        - subscribers: List[Callable]
+        + add_message(message: Message)
+        + subscribe(callback: Callable)
+        + notify_subscribers()
+    }
+}
+
+package "BingeBuddy" {
+    class BingeBuddy {
+        - llm: ChatOpenAI
+        - system_prompt: str
+        - message_log: MessageLog
+        - memoryDB: MemoryDB
+        + process_message(message: HumanMessage): AIMessage
+        + add_user_message(message: HumanMessage)
+        + fetch_user_memories(user_id: str): List<Memory>
+    }
+}
+
+package "Memory System" {
+    class MultiAgentWorkflow {
+        + run(initial_state: AgentState)
+    }
+}
+
+UserInterface --> SentimentAnalyzer : sends text message
+UserInterface --> AudioTranscriber : sends audio message
+AudioTranscriber --> SentimentAnalyzer : transcribes and analyzes sentiment
+SentimentAnalyzer --> BingeBuddy : sends processed message with emotion
+BingeBuddy --> MessageLog : publishes message
+MessageLog --> MultiAgentWorkflow : notifies subscribers
+BingeBuddy --> UserInterface : sends response
+
+@enduml

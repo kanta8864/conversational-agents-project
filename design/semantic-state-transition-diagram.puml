@@ -1,0 +1,56 @@
+@startuml
+[*] --> MemorySentinel
+
+state MemorySentinel {
+    MemorySentinel: process(state: AgentState)
+}
+
+MemorySentinel --> MemoryExtractor : contains_information == True
+MemorySentinel --> [*] : contains_information == False
+
+state MemoryExtractor {
+    MemoryExtractor: process(state: AgentState)
+}
+
+MemoryExtractor --> MemoryReviewer : Extracted Memories Available
+
+state MemoryReviewer {
+    MemoryReviewer: process(state: AgentState)
+}
+
+MemoryReviewer --> MemoryAttributor : Extracted Knowledge Verified
+MemoryReviewer --> MemoryExtractor : needs_repair == True \n Provide Repair Message
+
+state MemoryAttributor {
+    MemoryAttributor: process(state: AgentState)
+}
+
+MemoryAttributor --> AttributeReviewer : Attributes Assigned
+
+state AttributeReviewer {
+    AttributeReviewer: process(state: AgentState)
+}
+
+AttributeReviewer --> MemoryAggregator : Attributes Verified
+AttributeReviewer --> MemoryAttributor : needs_repair == True \n Provide Repair Message
+
+state MemoryAggregator {
+    MemoryAggregator: process(state: SemanticAgentState)
+}
+
+MemoryAggregator --> AggregatorReviewer : Aggregated Memories Ready
+
+state AggregatorReviewer {
+    AggregatorReviewer: process(state: SemanticAgentState)
+}
+
+AggregatorReviewer --> MemoryHandler : Aggregation Verified
+AggregatorReviewer --> MemoryAggregator : needs_repair == True \n Provide Repair Message
+
+state MemoryHandler {
+    MemoryHandler: process(state: SemanticAgentState)
+}
+
+MemoryHandler --> [*]
+
+@enduml

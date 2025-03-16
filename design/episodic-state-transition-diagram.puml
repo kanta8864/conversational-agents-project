@@ -1,0 +1,43 @@
+@startuml
+[*] --> MemorySentinel
+
+state MemorySentinel {
+    MemorySentinel: process(state: EpisodicAgentState)
+}
+
+MemorySentinel --> MemoryExtractor : contains_information == True
+MemorySentinel --> [*] : contains_information == False
+
+state MemoryExtractor {
+    MemoryExtractor: process(state: EpisodicAgentState)
+}
+
+MemoryExtractor --> MemoryReviewer : Extracted Memories Available
+
+state MemoryReviewer {
+    MemoryReviewer: process(state: EpisodicAgentState)
+}
+
+MemoryReviewer --> MemoryAttributor : Extracted Knowledge Verified
+MemoryReviewer --> MemoryExtractor : needs_repair == True \n Provide Repair Message
+
+state MemoryAttributor {
+    MemoryAttributor: process(state: EpisodicAgentState)
+}
+
+MemoryAttributor --> AttributeReviewer : Attributes Assigned
+
+state AttributeReviewer {
+    AttributeReviewer: process(state: EpisodicAgentState)
+}
+
+AttributeReviewer --> MemoryHandler : Attributes Verified
+AttributeReviewer --> MemoryAttributor : needs_repair == True \n Provide Repair Message
+
+state MemoryHandler {
+    MemoryHandler: process(state: EpisodicAgentState)
+}
+
+MemoryHandler --> [*]
+
+@enduml

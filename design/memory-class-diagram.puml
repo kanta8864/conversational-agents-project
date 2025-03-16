@@ -1,0 +1,208 @@
+@startuml
+
+left to right direction
+
+package "Memory Module" {
+    enum Attribute {
+        LIKES
+        DISLIKES
+    }
+
+    abstract class Memory {
+        - information: str
+        + get_type(): str
+    }
+    
+    class SemanticMemory {
+        + get_type(): str
+    }
+    
+    class EpisodicMemory {
+        - timestamp: datetime
+        + get_type(): str
+    }
+    
+    Memory <|-- SemanticMemory
+    Memory <|-- EpisodicMemory
+}
+
+package "Message Types" {
+    class Message {
+        - content: str
+        - role: str
+        - user_id: str
+        - session_id: str
+        - timestamp: datetime
+        - emotion: Emotion
+        + to_langchain_message(): BaseMessage
+        + from_langchain_message(lc_message: BaseMessage, user_id: str, session_id: str): Message
+    }
+
+    class HumanMessage {
+        + HumanMessage(content: str, user_id: str, session_id: str, timestamp: datetime)
+    }
+
+    class AIMessage {
+        + AIMessage(content: str, user_id: str, session_id: str, timestamp: datetime)
+    }
+
+    class SystemMessage
+    class ToolMessage
+    
+    Message <|-- HumanMessage
+    Message <|-- SystemMessage
+    Message <|-- AIMessage
+    Message <|-- ToolMessage
+}
+
+package "Agent State" {
+    abstract class AgentState {
+        - user_id: str
+        - memories: List<Memory>
+        - current_user_message: HumanMessage
+        - contains_information: boolean
+        - extracted_memories: List<Memory>
+        - needs_repair: boolean
+        - repair_message: Optional<str>
+    }
+    
+    class SemanticAgentState {
+        - aggregated_memories: List<SemanticMemory>
+    }
+    
+    class EpisodicAgentState {
+    }
+    
+    AgentState <|-- SemanticAgentState
+    AgentState <|-- EpisodicAgentState
+}
+
+package "Agents" {
+    abstract class BaseAgent {
+        - llm: ChatOpenAI
+        - system_message: SystemMessage
+        + __init__(system_prompt: str, model_name: str)
+        + process(state: AgentState): AgentState
+    }
+    
+    class MemorySentinel {
+        + process(state: AgentState): AgentState
+    }
+    
+    class MemoryExtractor {
+        + process(state: AgentState): AgentState
+    }
+    
+    class MemoryReviewer {
+        + process(state: AgentState): AgentState
+    }
+    
+    class MemoryAttributor {
+        + process(state: AgentState): AgentState
+    }
+    
+    class AttributeReviewer {
+        + process(state: AgentState): AgentState
+    }
+    
+    class MemoryAggregator {
+        + process(state: SemanticAgentState): SemanticAgentState
+    }
+
+    class AggregatorReviewer {
+        + process(state: SemanticAgentState): SemanticAgentState
+    }
+    
+    BaseAgent <|-- MemorySentinel
+    BaseAgent <|-- MemoryExtractor
+    BaseAgent <|-- MemoryReviewer
+    BaseAgent <|-- MemoryAttributor
+    BaseAgent <|-- AttributeReviewer
+    BaseAgent <|-- MemoryAggregator
+    BaseAgent <|-- AggregatorReviewer
+}
+
+package "Storage" {
+    
+    enum Collection {
+        EPISODIC
+        SEMANTIC
+    }
+
+    class MemoryDB {
+        - client: MongoClient
+        - db: Database
+        - collection: Collection
+        + __init__(uri: str, db_name: str, collection_name: str)
+        + store_memories(user_id: str, memories: List<Memory>)
+        + retrieve_memories(user_id: str): List<Memory>
+        + update_memory(user_id: str, memory: Memory)
+        + update_memories(user_id: str, memory: List<Memory>)
+    }
+
+    class MemoryHandler {
+        - memory_db: MemoryDB
+        - process(state: AgentState)
+    }
+
+    class SemanticMemoryHandler {
+        + process(state: SemanticAgentState)
+    }
+    
+    class EpisodicMemoryHandler {
+        + process(state: EpisodicAgentState)
+    }
+
+    MemoryDB <|-- MemoryHandler
+    MemoryHandler <|-- SemanticMemoryHandler
+    MemoryHandler <|-- EpisodicMemoryHandler
+}
+
+package "MemorySystem" {
+    class MultiAgentWorkflow {
+        - state_graph: StateGraph
+        + run(initial_state: AgentState)
+    }
+
+    class SemanticWorkflow {
+        + run(initial_state: SemanticAgentState): SemanticAgentState
+    }
+    
+    class EpisodicWorkflow {
+        + run(initial_state: EpisodicAgentState): EpisodicAgentState
+    }
+    MultiAgentWorkflow <|-- SemanticWorkflow
+    MultiAgentWorkflow <|-- EpisodicWorkflow
+}
+
+SemanticWorkflow ..> SemanticAgentState
+EpisodicWorkflow ..> EpisodicAgentState
+SemanticWorkflow ..> MemorySentinel
+SemanticWorkflow ..> MemoryExtractor
+SemanticWorkflow ..> MemoryReviewer
+SemanticWorkflow ..> MemoryAttributor
+SemanticWorkflow ..> AttributeReviewer
+SemanticWorkflow ..> MemoryAggregator
+SemanticWorkflow ..> SemanticMemoryHandler
+
+EpisodicWorkflow ..> MemorySentinel
+EpisodicWorkflow ..> MemoryExtractor
+EpisodicWorkflow ..> MemoryReviewer
+EpisodicWorkflow ..> MemoryAttributor
+EpisodicWorkflow ..> AttributeReviewer
+EpisodicWorkflow ..> EpisodicMemoryHandler
+
+MemorySentinel --> AgentState
+MemoryExtractor --> AgentState
+MemoryReviewer --> AgentState
+MemoryAttributor --> AgentState
+AttributeReviewer --> AgentState
+MemoryAggregator --> SemanticAgentState
+AggregatorReviewer --> SemanticAgentState
+
+AgentState "1" *-- "many" Memory
+SemanticAgentState "1" *-- "many" SemanticMemory
+EpisodicAgentState "1" *-- "many" EpisodicMemory
+AgentState "1" *-- "many" Message
+
+@enduml
