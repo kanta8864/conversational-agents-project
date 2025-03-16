@@ -10,12 +10,10 @@ package "Frontend" {
 }
 
 package "Perception Module" {
-    class PerceptionModule {
+    class AudioTranscriber {
         + transcribe_audio(audio_data: bytes): Message
     }
-}
 
-package "Sentiment Analysis" {
     class SentimentAnalyzer {
         + analyze_sentiment(message: Message): Message
     }
@@ -49,10 +47,10 @@ package "Memory System" {
     }
 }
 
-UserInterface --> BingeBuddy : sends text message
-UserInterface --> PerceptionModule : sends audio message
-PerceptionModule --> SentimentAnalyzer : transcribes and analyzes sentiment
-SentimentAnalyzer --> BingeBuddy : sends processed message
+UserInterface --> SentimentAnalyzer : sends text message
+UserInterface --> AudioTranscriber : sends audio message
+AudioTranscriber --> SentimentAnalyzer : transcribes and analyzes sentiment
+SentimentAnalyzer --> BingeBuddy : sends processed message with emotion
 BingeBuddy --> MessageLog : publishes message
 MessageLog --> MultiAgentWorkflow : notifies subscribers
 BingeBuddy --> UserInterface : sends response
