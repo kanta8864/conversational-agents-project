@@ -1,36 +1,79 @@
-import uuid
 from datetime import datetime
-from typing import Optional, Union
+from typing import Optional, TypedDict, Union
 
-from langchain.schema import HumanMessage, SystemMessage
+from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from pydantic import Field
 
 
-class Message:
-    def __init__(
-        self,
-        content: str,
-        role: str,
+class MessageDict(TypedDict):
+    content: str
+    role: str
+    user_id: str
+    session_id: str
+    timestamp: str
+    type: str
+
+
+class Message(BaseMessage):
+    role: str = Field(..., description="The role of the sender (user/agent).")
+    user_id: str = Field(..., description="User ID associated with the message.")
+    session_id: str = Field(..., description="Session ID for the conversation.")
+    timestamp: datetime = Field(
+        default_factory=datetime.now, description="Message timestamp."
+    )
+    type: str
+
+    def to_langchain_message(self) -> Union[HumanMessage, AIMessage]:
+        if self.role == "user":
+            return HumanMessage(content=self.content)
+        elif self.role == "agent":
+            return AIMessage(content=self.content)
+        raise ValueError("Invalid message role")
+
+    @staticmethod
+    def from_langchain_message(
+        lc_message: Union[HumanMessage, AIMessage],
         user_id: str,
         session_id: str,
-        timestamp: Optional[datetime] = None,
-    ):
-        """
-        Initialize a message.
+    ) -> "Message":
+        role = "user" if isinstance(lc_message, HumanMessage) else "agent"
+        return Message(
+            content=lc_message.content,
+            role=role,
+            user_id=user_id,
+            session_id=session_id,
+            type="human",
+        )
 
-        :param content: The content of the message (text or speech).
-        :param role: The role of the sender (user/agent).
-        :param user_id: The unique ID of the user (for accessing long-term memory in MongoDB).
-        :param session_id: The unique ID of the current session (to track this conversation).
-        :param timestamp: Timestamp when the message was created (defaults to now).
-        """
-        self.message_id = str(uuid.uuid4())  # Unique message identifier
-        self.content = content
-        self.role = role  # Can be 'user' or 'agent'
-        self.user_id = user_id
-        self.session_id = session_id
-        self.timestamp = (
-            timestamp if timestamp else datetime.now()
-        )  # Default to current time
+    def as_dict(self) -> MessageDict:
+        """Custom method to return a dictionary representation of the object."""
+        return {
+            "content": self.content,
+            "role": self.role,
+            "user_id": self.user_id,
+            "session_id": self.session_id,
+            "timestamp": self.timestamp.isoformat(),
+            "type": self.type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: MessageDict) -> "Message":
+        """Dynamically create a UserMessage or Message based on role."""
+        if data["role"] == "user":
+            return UserMessage(
+                content=data["content"],
+                user_id=data["user_id"],
+                session_id=data["session_id"],
+                timestamp=datetime.fromisoformat(data["timestamp"]),
+            )
+        return cls(
+            content=data["content"],
+            role=data["role"],
+            user_id=data["user_id"],
+            session_id=data["session_id"],
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            type=data["type"],
+        )
 
     def __repr__(self):
         return f"Message(user_id={self.user_id}, session_id={self.session_id}, role={self.role}, timestamp={self.timestamp})"
@@ -38,14 +81,13 @@ class Message:
     def __str__(self):
         return f"Message(role:{self.role}, content:{self.content})"
 
-    def to_langchain_message(self) -> Union[HumanMessage, SystemMessage]:
-        """
-        Converts the current message object to a LangChain-compatible message
-        (either HumanMessage or SystemMessage).
-        """
-        if self.role == "user":
-            return HumanMessage(content=self.content)
-        elif self.role == "system":
-            return SystemMessage(content=self.content)
-        else:
-            raise ValueError(f"Unsupported message role: {self.role}")
+
+class UserMessage(Message):
+    role: str = "user"
+    type: str = "human"
+
+    def __repr__(self):
+        return f"UserMessage(user_id={self.user_id}, session_id={self.session_id}, content={self.content})"
+
+    def __str__(self):
+        return f"UserMessage(role:{self.role}, content:{self.content})"

@@ -1,35 +1,37 @@
-from typing import Iterator, List, Optional
-
-from .message import Message
+from typing import Callable, Iterator, List, Optional
+from binge_buddy.agent_state.agent_state import AgentState
+from binge_buddy.agent_state.semantic_agent_state import SemanticAgentState
+from binge_buddy.memory_workflow.semantic_workflow import SemanticWorkflow
+from binge_buddy.message.human_message import HumanMessage
+from .message.message import Message
+import threading
 
 
 class MessageLog:
-    def __init__(self, session_id: str, user_id: str):
-        """
-        Initialize the message log for the current session.
-
-        :param session_id: The unique session identifier.
-        :param user_id: The unique user identifier.
-        """
-        self.session_id = session_id
+    def __init__(self,user_id,session_id):
         self.user_id = user_id
-        self.messages: List[Message] = []  # List of Message objects for this session
+        self.session_id = session_id
+        self.messages: List[Message] = [] 
+        self.subscribers: List[Callable[[AgentState], None]] = []
+        # todo: please please fix this. my brain did not work.
+        workflow = SemanticWorkflow()
+        self.subscribe(workflow.run)
 
-    def add_message(self, message: Message) -> None:
-        """
-        Adds a Message object to the session log.
-
-        :param message: The Message object to be added to the log.
-        """
+    def add_message(self, message: Message):
         self.messages.append(message)
+        if(isinstance(message, HumanMessage)):
+            self.notify_subscribers(message)
 
-    def get_history(self) -> List[str]:
-        """
-        Returns the conversation history as a list of message contents, including roles.
+    def subscribe(self, callback: Callable[[Message], None]):
+        self.subscribers.append(callback)
 
-        :return: A list of message contents with role information.
-        """
-        return [f"{message.role}: {message.content}" for message in self.messages]
+    def notify_subscribers(self, message: HumanMessage):
+        print("notifying subscribers")
+        for subscriber in self.subscribers:
+            # todo: change this
+            state = SemanticAgentState(user_id=message.user_id, memories=[], current_user_message=message)
+            thread = threading.Thread(target=subscriber, args=(state,))
+            thread.start()
 
     def get_last_message(self) -> Optional[Message]:
         """
