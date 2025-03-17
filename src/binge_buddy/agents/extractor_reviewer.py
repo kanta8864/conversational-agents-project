@@ -1,5 +1,3 @@
-from binge_buddy.agent_state.agent_state import AgentState
-from binge_buddy.agents.base_agent import BaseAgent
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
@@ -8,14 +6,17 @@ from langchain.prompts import (
 from langchain_core.runnables import RunnableLambda
 
 from binge_buddy import utils
+from binge_buddy.agent_state.states import AgentState, AgentStateDict
+from binge_buddy.agents.base_agent import BaseAgent
+from binge_buddy.memory import SemanticMemory
 from binge_buddy.ollama import OllamaLLM
 
 
 class ExtractorReviewer(BaseAgent):
     def __init__(self, llm: OllamaLLM):
         super().__init__(
-            llm = llm,
-            system_prompt_initial= """
+            llm=llm,
+            system_prompt_initial="""
             You are an expert memory reviewer.
 
             Your job is to ensure that the newly generated memory is:
@@ -57,7 +58,8 @@ class ExtractorReviewer(BaseAgent):
             If the new memory **needs fixing**, respond with:
             REJECTED  
             **Reason** Give reasons for flagging new aggreagated memory. 
-            """)
+            """,
+        )
 
         self.prompt = ChatPromptTemplate.from_messages(
             [
@@ -69,7 +71,8 @@ class ExtractorReviewer(BaseAgent):
         self.memory_reviewer_runnable = self.prompt | self.llm_runnable
 
     def process(self, state: AgentState) -> AgentState:
-        return utils.remove_think_tags(
+
+        response = utils.remove_think_tags(
             self.memory_reviewer_runnable.invoke(
                 {
                     "user_message": [state.current_user_message.to_langchain_message()],
@@ -78,3 +81,9 @@ class ExtractorReviewer(BaseAgent):
             )
         )
 
+        # For now I am using a SemanticMemory but I think we should let the
+        # state handle the creation of the Memory object.
+        # A method like create_memory so SemanticAgentState returns an object of SemanticMemory
+        # EpisodicAgentState returns an object of EpisodicMemory
+        state.extracted_memories = [SemanticMemory(response)]
+        return state

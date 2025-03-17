@@ -1,20 +1,17 @@
-from binge_buddy.agent_state.agent_state import AgentState
-from binge_buddy.agents.base_agent import BaseAgent
-from langchain.prompts import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-)
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate
 from langchain_core.runnables import RunnableLambda
 
 from binge_buddy import utils
+from binge_buddy.agent_state.states import AgentState, AgentStateDict
+from binge_buddy.agents.base_agent import BaseAgent
 from binge_buddy.ollama import OllamaLLM
 
 
 class MemoryAggregator(BaseAgent):
     def __init__(self, llm: OllamaLLM):
         super().__init__(
-            llm = llm,
-            system_prompt_initial= """
+            llm=llm,
+            system_prompt_initial="""
             You are a supervisor managing a team of movie recommendation experts.
 
             Your team's job is to build and maintain a comprehensive knowledge base about a user's movie preferences to provide highly personalized recommendations.
@@ -26,7 +23,7 @@ class MemoryAggregator(BaseAgent):
             Here is the information that you are given with: 
 
             ## New memories
-            {extracted_knowledge} 
+            {extracted_memories} 
 
             ## Existing memories
             {existing_memories} 
@@ -34,7 +31,7 @@ class MemoryAggregator(BaseAgent):
             ### Task Breakdown:
 
             1. **Extract and Categorize Information:**
-            - Assign each extracted piece of information in {extracted_knowledge} to its appropriate attribute from the predefined list below.
+            - Assign each extracted piece of information in {extracted_memories} to its appropriate attribute from the predefined list below.
             - A single message may contain multiple relevant pieces of information that should be categorized separately.
             - It could be that an attribute is empty, because the user didn't provide any information for that attribute. In that case, you don't need to add anything to that specific attribute in memory.
 
@@ -101,7 +98,8 @@ class MemoryAggregator(BaseAgent):
                         ...
                         ]
                 ]
-            """)
+            """,
+        )
 
         self.prompt = ChatPromptTemplate.from_messages(
             [SystemMessagePromptTemplate.from_template(self.system_prompt_initial)]
@@ -112,9 +110,11 @@ class MemoryAggregator(BaseAgent):
     def process(self, state: AgentState) -> AgentState:
         response = self.memory_aggregator_runnable.invoke(
             {
-                "existing_memories": state.memories,
-                "extracted_knowledge": state.extracted_knowledge,
+                "existing_memories": state.existing_memories,
+                "extracted_memories": state.extracted_memories,
             }
         )
 
-        return utils.remove_think_tags(response)
+        response = utils.remove_think_tags(response)
+
+        return state

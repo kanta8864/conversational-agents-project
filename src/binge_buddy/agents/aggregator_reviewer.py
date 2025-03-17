@@ -1,21 +1,17 @@
-from binge_buddy.agent_state.agent_state import AgentState
-from binge_buddy.agent_state.semantic_agent_state import SemanticAgentState
-from binge_buddy.agents.base_agent import BaseAgent
-from langchain.prompts import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-)
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate
 from langchain_core.runnables import RunnableLambda
 
 from binge_buddy import utils
+from binge_buddy.agent_state.states import AgentState, SemanticAgentState
+from binge_buddy.agents.base_agent import BaseAgent
 from binge_buddy.ollama import OllamaLLM
 
 
 class AggregatorReviewer(BaseAgent):
     def __init__(self, llm: OllamaLLM):
         super().__init__(
-            llm = llm,
-            system_prompt_initial= """
+            llm=llm,
+            system_prompt_initial="""
             You are an expert memory reviewer tasked with ensuring the integrity of a user's long-term memory. Your role is to critically evaluate the **aggregated memory** produced by the system, ensuring it is:
             1. **Accurate** - It must correctly reflect the existing memories and new memory without distortion.
             2. **Complete** - It should capture all relevant details without omitting important information.
@@ -59,7 +55,8 @@ class AggregatorReviewer(BaseAgent):
             If the **aggregated memory** is incorrect, respond with:
             REJECTED
             **Reason:** Clearly explain why the aggregated memory is incorrect, specifying whether it introduces hallucinations, omits crucial details, or alters existing knowledge incorrectly.
-            """)
+            """,
+        )
 
         self.prompt = ChatPromptTemplate.from_messages(
             [SystemMessagePromptTemplate.from_template(self.system_prompt_initial)]
@@ -68,12 +65,17 @@ class AggregatorReviewer(BaseAgent):
         self.aggregator_reviewer_runnable = self.prompt | self.llm_runnable
 
     def process(self, state: AgentState) -> AgentState:
+        if not isinstance(state, SemanticAgentState):
+            raise TypeError(f"Expected SemanticAgentState, got {type(state).__name__}")
+
         response = self.aggregator_reviewer_runnable.invoke(
             {
                 "existing_memories": state.existing_memories,
-                "extracted_knowledge": state.extracted_knowledge,
-                "aggregated_memory": state.aggregated_memory,
+                "extracted_knowledge": state.extracted_memories,
+                "aggregated_memories": state.aggregated_memories,
             }
         )
-        state.aggregated_memories = utils.remove_think_tags(response)
+        response = utils.remove_think_tags(response)
+
+        state.needs_repair = response == "APPROVED"
         return state

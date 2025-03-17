@@ -1,5 +1,3 @@
-from binge_buddy.agent_state.agent_state import AgentState
-from binge_buddy.agents.base_agent import BaseAgent
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
@@ -8,14 +6,16 @@ from langchain.prompts import (
 from langchain_core.runnables import RunnableLambda
 
 from binge_buddy import utils
+from binge_buddy.agent_state.states import AgentState, AgentStateDict
+from binge_buddy.agents.base_agent import BaseAgent
 from binge_buddy.ollama import OllamaLLM
 
 
 class MemorySentinel(BaseAgent):
     def __init__(self, llm: OllamaLLM):
-       super().__init__(
-            llm = llm,
-            system_prompt_initial= """
+        super().__init__(
+            llm=llm,
+            system_prompt_initial="""
             Your job is to assess a brief chat history in order to determine if the conversation contains any details about a user's watching habits regarding streaming content. 
             You are part of a team building a knowledge base regarding a user's watching habits to assist in highly customized streaming content recommendations.
             You play the critical role of assessing the message to determine if it contains any information worth recording in the knowledge base.
@@ -55,9 +55,10 @@ class MemorySentinel(BaseAgent):
             2. If it has any information worth recording, return TRUE. If not, return FALSE.
             
             You should ONLY RESPOND WITH TRUE OR FALSE. Absolutely no other information should be provided.
-            """)
-       
-       self.prompt = ChatPromptTemplate.from_messages(
+            """,
+        )
+
+        self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessagePromptTemplate.from_template(self.system_prompt_initial),
                 MessagesPlaceholder(variable_name="messages"),
@@ -67,14 +68,18 @@ class MemorySentinel(BaseAgent):
                 ),
             ]
         )
-       self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
-       self.memory_sentinel_runnable = self.prompt | self.llm_runnable
+        self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
+        self.memory_sentinel_runnable = self.prompt | self.llm_runnable
 
-    def process(self, state: AgentState) -> dict:
+    def process(self, state: AgentState) -> AgentState:
+
         # Run the pipeline and get the response
-        response = self.memory_sentinel_runnable.invoke(
-            [state.current_user_message.to_langchain_message()]
+        response = utils.remove_think_tags(
+            self.memory_sentinel_runnable.invoke(
+                [state.current_user_message.to_langchain_message()]
+            )
         )
         # Return True/False based on the response
-        return {"contains_information": "TRUE" in response and "yes" or "no"}
+        state.contains_information = response == "TRUE"
 
+        return state

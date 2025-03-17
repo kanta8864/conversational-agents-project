@@ -1,20 +1,18 @@
-from binge_buddy.agent_state.agent_state import AgentState
-from binge_buddy.agent_state.semantic_agent_state import SemanticAgentState
+from langgraph.graph import END, StateGraph
+
+from binge_buddy.agent_state.states import AgentState, SemanticAgentState
 from binge_buddy.agents.aggregator_reviewer import AggregatorReviewer
 from binge_buddy.agents.extractor_reviewer import ExtractorReviewer
 from binge_buddy.agents.memory_extractor import MemoryExtractor
 from binge_buddy.agents.memory_sentinel import MemorySentinel
 from binge_buddy.memory_workflow.multi_agent_workflow import MultiAgentWorkflow
+from binge_buddy.message import UserMessage
 from binge_buddy.ollama import OllamaLLM
-from langgraph.graph import END, StateGraph
+
 
 class SemanticWorkflow(MultiAgentWorkflow):
     def __init__(self):
         super().__init__()
-    
-    def run(self, initial_state: AgentState):
-        # Initialize a new graph
-        self.state_graph = StateGraph(initial_state)
 
         # todo: change this to use global llm
         llm = OllamaLLM()
@@ -24,15 +22,18 @@ class SemanticWorkflow(MultiAgentWorkflow):
         memory_aggregator = MemoryExtractor(llm)
         aggregator_reviewer = AggregatorReviewer(llm)
 
-        self.state_graph.add_node("sentinel", lambda: memory_sentinel.process(initial_state))
-        self.state_graph.add_node("memory_extractor", lambda:memory_extractor.process(initial_state))
-        self.state_graph.add_node("memory_reviewer", lambda:extractor_reviewer.process(initial_state))
-        self.state_graph.add_node("memory_aggregator",lambda: memory_aggregator.process(initial_state))
-        self.state_graph.add_node("aggregator_reviewer", lambda:aggregator_reviewer.process(initial_state))
+        # Initialize a new graph
+        self.state_graph = StateGraph(SemanticAgentState)
 
+        self.state_graph.add_node("sentinel", memory_sentinel.process)
+        self.state_graph.add_node("memory_extractor", memory_extractor.process)
+        self.state_graph.add_node("memory_reviewer", extractor_reviewer.process)
+        self.state_graph.add_node("memory_aggregator", memory_aggregator.process)
+        self.state_graph.add_node("aggregator_reviewer", aggregator_reviewer.process)
+
+        # What is this doing, we don't use any tools directly, right?
         # Call super().call_tool() directly if it's callable
-        self.state_graph.add_node("action", lambda:super().call_tool)
-
+        self.state_graph.add_node("action", print)
 
         # Define all our Edges
 
@@ -53,7 +54,7 @@ class SemanticWorkflow(MultiAgentWorkflow):
             "memory_extractor",
             lambda state: (
                 "continue" if bool(state["extracted_knowledge"]) else "end"
-            ),  # Ensure to return a string key
+            ),  # Ensure to return a string key, (Shreyas: Why do you mean by a string key?)
             {
                 "continue": "memory_reviewer",
                 "end": END,
@@ -93,8 +94,11 @@ class SemanticWorkflow(MultiAgentWorkflow):
         self.state_graph.add_edge("action", END)
 
         # We compile the entire workflow as a runnable
-        app = self.state_graph.compile()
+        self.state_graph_runnable = self.state_graph.compile()
 
+    def run(self, initial_state: AgentState):
+
+        self.state_graph_runnable.invoke(initial_state.as_dict())
         print("hey")
 
         # for output in app.with_config({"run_name": "Memory"}).stream(initial_state):
@@ -105,7 +109,6 @@ class SemanticWorkflow(MultiAgentWorkflow):
         #         print("---")
         #         print(value)
         #     print("\n---\n")
-        
 
     def print_nodes(self):
         if self.state_graph is None:
@@ -119,10 +122,15 @@ class SemanticWorkflow(MultiAgentWorkflow):
 
 
 if __name__ == "__main__":
-    handler = SemanticWorkflow()
-    state = SemanticAgentState(user_id="userID", memories=[], current_user_message="hi")
-    app = handler.run(state)
+    semantic_workflow = SemanticWorkflow()
+    message = UserMessage(content="hi", user_id="12", session_id="123")
+
+    state = SemanticAgentState(
+        user_id="userID",
+        existing_memories=[],
+        current_user_message=message,
+    )
 
     # Print all the nodes in the graph
-    handler.print_nodes()
-  
+    semantic_workflow.run(state)
+
