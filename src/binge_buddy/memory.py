@@ -42,6 +42,12 @@ class Memory(ABC):
     def from_dict(cls, data: dict) -> "Memory":
         return cls(data["memory_type"], data["information"])
 
+    def __repr__(self):
+        raise NotImplementedError("Should be implemented in the inherited class")
+
+    def __str__(self):
+        raise NotImplementedError("Should be implemented in the inherited class")
+
 
 class SemanticMemory(Memory):
     def __init__(self, information: str):
@@ -49,6 +55,12 @@ class SemanticMemory(Memory):
 
     def get_type(self) -> str:
         return self.memory_type
+
+    def __repr__(self):
+        return f"SemanticMemory(information={self.information})"
+
+    def __str__(self):
+        return f"SemanticMemory(information={self.information})"
 
 
 class EpisodicMemory(Memory):
@@ -60,3 +72,9 @@ class EpisodicMemory(Memory):
 
     def get_type(self) -> str:
         return self.memory_type
+
+    def __repr__(self):
+        return f"EpisodicMemory(information={self.information}, timestamp={self.timestamp})"
+
+    def __str__(self):
+        return f"EpisodicMemory(information={self.information}, timestamp={self.timestamp})"

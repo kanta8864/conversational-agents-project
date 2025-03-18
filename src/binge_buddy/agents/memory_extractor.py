@@ -153,6 +153,7 @@ class MemoryExtractor(BaseAgent):
         memories = self.format_memories(response, state)
 
         # Log the extracted response
+        logging.info(f"Memory Extractor response: {response}")
         logging.info(f"Extracted Memories: {memories}")
 
         state.extracted_memories = memories

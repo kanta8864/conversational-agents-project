@@ -57,7 +57,7 @@ class SemanticWorkflow(MultiAgentWorkflow):
 
         self.state_graph.add_conditional_edges(
             "memory_reviewer",
-            lambda state: ("continue" if not state.repair else "repair"),
+            lambda state: ("continue" if not state.needs_repair else "repair"),
             {
                 "continue": "memory_aggregator",
                 "repair": "memory_extractor",
@@ -75,7 +75,7 @@ class SemanticWorkflow(MultiAgentWorkflow):
 
         self.state_graph.add_conditional_edges(
             "aggregator_reviewer",
-            lambda state: ("continue" if not state.repair else "repair"),
+            lambda state: ("continue" if not state.needs_repair else "repair"),
             {
                 "continue": "action",
                 "repair": "memory_aggregator",
