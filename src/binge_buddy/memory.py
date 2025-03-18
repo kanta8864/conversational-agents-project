@@ -1,5 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Optional, TypedDict
+from datetime import datetime
+from typing import TYPE_CHECKING, List, Optional, TypedDict
+
+# Avoid circular import issue
+if TYPE_CHECKING:
+    from binge_buddy.agent_state.states import AgentState  # Only used for type hints
 
 
 class MemoryDict(TypedDict):
@@ -23,6 +30,14 @@ class Memory(ABC):
             "information": self.information,
         }
 
+    @staticmethod
+    def create(information: str, state: AgentState):
+        if state.state_type == "semantic":
+            return SemanticMemory(information)
+        else:
+            current_user_message = state.current_user_message
+            return EpisodicMemory(information, current_user_message.timestamp)
+
     @classmethod
     def from_dict(cls, data: dict) -> "Memory":
         return cls(data["memory_type"], data["information"])
@@ -37,8 +52,11 @@ class SemanticMemory(Memory):
 
 
 class EpisodicMemory(Memory):
-    def __init__(self, information: str):
+    timestamp: datetime
+
+    def __init__(self, information: str, timestamp: datetime):
         super().__init__("Episodic", information)
+        self.timestamp = timestamp
 
     def get_type(self) -> str:
         return self.memory_type

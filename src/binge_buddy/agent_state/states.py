@@ -18,6 +18,7 @@ class AgentStateDict(TypedDict, total=False):  # total=False makes all fields op
 class AgentState(ABC):
     def __init__(
         self,
+        state_type: str,
         user_id: str,
         existing_memories: List[Memory],
         current_user_message: Message,
@@ -33,6 +34,7 @@ class AgentState(ABC):
         self.extracted_memories = extracted_memories
         self.needs_repair = needs_repair
         self.repair_message = repair_message
+        self.state_type = state_type
 
     def as_dict(self) -> AgentStateDict:
         """Convert state object to dictionary for LangGraph compatibility."""
@@ -79,7 +81,12 @@ class SemanticAgentState(AgentState):
         existing_memories: List[Memory],
         current_user_message: UserMessage,
     ):
-        super().__init__(user_id, existing_memories, current_user_message)
+        super().__init__(
+            user_id=user_id,
+            existing_memories=existing_memories,
+            current_user_message=current_user_message,
+            state_type="semantic",
+        )
         self.aggregated_memories = None
 
     def as_dict(self) -> SemanticAgentStateDict:

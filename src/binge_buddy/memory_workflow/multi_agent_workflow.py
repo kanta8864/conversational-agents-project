@@ -4,16 +4,20 @@ from typing import Optional
 
 from langchain.tools import StructuredTool
 from langchain_core.messages import ToolMessage
-from langgraph.graph import StateGraph
 from pydantic import BaseModel, Field
 
 from binge_buddy.agent_state.states import AgentState
 from binge_buddy.enums import Action, Attribute
 
+# from langgraph.graph import StateGraph
+from binge_buddy.state_graph import CustomStateGraph
+
 
 class MultiAgentWorkflow(ABC):
+
+    state_graph: CustomStateGraph
+
     def __init__(self):
-        self.state_graph: Optional[StateGraph] = None
         self.agent_tools = [self._initialize_modify_knowledge_tool()]
 
     @abstractmethod
@@ -83,4 +87,3 @@ class AddKnowledge(BaseModel):
         ...,
         description="Whether this knowledge is adding a new record, or updating an existing record with aggregated information",
     )
-

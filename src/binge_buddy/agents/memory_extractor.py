@@ -1,3 +1,6 @@
+import json
+import logging
+import re
 from typing import Dict, List, Optional
 
 from langchain.prompts import (
@@ -10,7 +13,13 @@ from langchain_core.runnables import RunnableLambda
 from binge_buddy import utils
 from binge_buddy.agent_state.states import AgentState, AgentStateDict
 from binge_buddy.agents.base_agent import BaseAgent
+from binge_buddy.memory import EpisodicMemory, Memory, SemanticMemory
 from binge_buddy.ollama import OllamaLLM
+
+# Configure logging (if not already configured elsewhere)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class MemoryExtractor(BaseAgent):
@@ -96,22 +105,56 @@ class MemoryExtractor(BaseAgent):
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessagePromptTemplate.from_template(self.system_prompt_initial),
-                MessagesPlaceholder(variable_name="messages"),
+                MessagesPlaceholder(variable_name="current_user_message"),
             ]
         )
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
         self.memory_extractor_runnable = self.prompt | self.llm_runnable
 
-    def format_memories(self, response: str) -> List[Dict]: ...
+    def format_memories(self, response: str, state: AgentState) -> List[Memory]:
+
+        # Use regex to extract JSON content
+        match = re.search(r"\[\s*{.*}\s*\]", response, re.DOTALL)
+
+        if not match:
+            # raise ValueError("No valid JSON found in response")
+            return []
+
+        json_string = match.group(0).strip()
+
+        try:
+            json_memories_object = json.loads(json_string)
+        except json.JSONDecodeError as e:
+            # raise ValueError("Failed to parse JSON") from e
+            return []
+
+        memories = []
+
+        for obj in json_memories_object:
+            information = obj["memory"]
+            memories.append(Memory.create(information=information, state=state))
+
+        return memories
 
     def process(self, state: AgentState) -> AgentState:
 
         # Run the pipeline and get the response
         response = utils.remove_think_tags(
             self.memory_extractor_runnable.invoke(
-                {"current_user_message": state.current_user_message}
+                {
+                    "current_user_message": [
+                        state.current_user_message.to_langchain_message()
+                    ]
+                }
             )
         )
         response = response.split("Memory Extractor Result:", 1)[-1].strip()
+
+        memories = self.format_memories(response, state)
+
+        # Log the extracted response
+        logging.info(f"Extracted Memories: {memories}")
+
+        state.extracted_memories = memories
 
         return state
