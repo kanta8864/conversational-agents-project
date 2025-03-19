@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 import re
@@ -8,12 +9,14 @@ from langchain.prompts import (
     MessagesPlaceholder,
     SystemMessagePromptTemplate,
 )
+from langchain.schema import AIMessage
 from langchain_core.runnables import RunnableLambda
 
 from binge_buddy import utils
 from binge_buddy.agent_state.states import AgentState, AgentStateDict
 from binge_buddy.agents.base_agent import BaseAgent
 from binge_buddy.memory import EpisodicMemory, Memory, SemanticMemory
+from binge_buddy.message import AgentMessage
 from binge_buddy.ollama import OllamaLLM
 
 # Configure logging (if not already configured elsewhere)
@@ -27,130 +30,178 @@ class MemoryExtractor(BaseAgent):
         super().__init__(
             llm=llm,
             system_prompt_initial="""
-            You are a supervisor managing a team of movie recommendation experts.
+                You are a supervisor managing a team of movie recommendation experts.
 
-            Your team's job is to build the perfect knowledge base about a user's movie preferences in order to provide highly personalized recommendations.
+                Your team's job is to build the perfect knowledge base about a user's movie preferences in order to provide highly personalized recommendations.
 
-            The knowledge base should ultimately consist of many discrete pieces of information that add up to a rich persona (e.g. Likes action movies; Dislikes horror; Favorite movie is Inception; Watches mostly on Netflix; Enjoys long TV series; Prefers witty and sarcastic characters etc).
+                The knowledge base should ultimately consist of many discrete pieces of information that add up to a rich persona (e.g., Likes action movies; Dislikes horror; Favorite movie is Inception; Watches mostly on Netflix; Enjoys long TV series; Prefers witty and sarcastic characters, etc.).
 
-            Every time you receive a message, you will evaluate whether it contains any information worth recording in the knowledge base.
+                Every time you receive a message, you will evaluate whether it contains any information worth recording in the knowledge base.
 
-            A message may contain multiple pieces of information that should be saved separately.
+                A message may contain multiple pieces of information that should be saved separately.
 
-            You are only interested in the following categories of information:
+                ---
 
-            LIKES: **Movies and Genres the user likes** 
-            - This helps recommend movies the user is likely to enjoy.  
+                ### **Types of Information to Track**  
+                You are only interested in the following categories of information:
 
-            DISLIKES: **Movies and Genres the user dislikes**  
-            - This helps avoid recommending content the user won't enjoy.  
+                - **LIKES:** Movies and Genres the user likes  
+                - **DISLIKES:** Movies and Genres the user dislikes  
+                - **FAVORITE:** Favorite movies  
+                - **WANTS_TO_WATCH:** Movies the user wants to watch  
+                - **PLATFORM:** Preferred streaming platforms  
+                - **GENRE:** Preferred genres  
+                - **PERSONALITY:** User's personality in relation to movies  
+                - **WATCHING_HABIT:** Watching habits  
+                - **FREQUENCY:** Frequency of watching  
+                - **AVOID:** Categories the user wants to avoid  
+                - **CHARACTER_PREFERENCES:** Character archetypes the user enjoys  
+                - **SHOW_LENGTH:** Preferences for show length  
+                - **REWATCHER:** Whether the user enjoys rewatching movies/shows  
+                - **POPULARITY:** Preference for mainstream vs. niche content  
 
-            FAVORITE: **Favorite movies**  
-            - This helps refine recommendations by finding similar movies.  
+                ---
 
-            WANTS_TO_WATCH: **Movies the user wants to watch** 
-            - This ensures the system prioritizes unwatched recommendations.  
+                ### **How You Should Process Messages**
 
-            PLATFORM: **Preferred streaming platforms**  
-            - This ensures recommendations are available on the user's preferred services.  
-            
-            GENRE: **Preferred genres**
-            - This helps suggest content that aligns with the user's tastes.
+                Each time you receive a message, follow these steps:
 
-            PERSONALITY: **Personality of the user**  
-            - Example: *Enjoys lighthearted comedies; Finds fast-paced movies engaging.*  
+                #### **1. Extract New Memories**
+                - Analyze the latest **user message** for new information.  
+                - Identify **all relevant details** that belong to one of the above categories.  
+                - If multiple pieces of information are found, list them separately.  
 
-            WATCHING_HABIT: **Watching habits** 
-            - This helps suggest content that fits the user's lifestyle.  
+                ---
 
-            FREQUENCY: **Frequency**  
-            - This helps suggest content that fits the user's frequency of watching movies/shows.  
+                ### **2. Repair Memories (If a Repair Request is Present)**  
+                Sometimes, you will receive a **repair request**. This means that some of the previously extracted memories from the same user message were incorrect.  
 
-            AVOID: **Avoid categories**  
-            - Ensures the system respects the user's hard limits.  
+                In this case, you will receive:  
+                1. **The original extracted memories** (as a list of strings).  
+                2. **A repair message** explaining what needs to be corrected.  
 
-            CHARACTER_PREFERENCES: **Character preferences**  
-            - Example: *Prefers witty and sarcastic characters; Enjoys dark and mysterious protagonists.*  
+                #### **Steps for Repairing Memories:**  
+                - Carefully analyze the repair message.  
+                - Identify errors or inaccuracies in the provided memories.  
+                - Correct the memories based on the repair instructions.  
+                - Ensure the final memories are **fully accurate and aligned** with the user’s actual preferences.  
 
-            SHOW_LENGTH: **Show length preferences**   
-            - This ensures recommendations align with preferred pacing and format.  
+                ---
 
-            REWATCHER: **Rewatching tendencies**   
-            - This helps tailor recommendations for fresh or nostalgic content.  
+                ### **Final Output Format (STRICT REQUIREMENT)**  
 
-            POPULARITY: **Popularity preferences**  
-            - This helps suggest content based on mainstream vs. niche tastes.  
+                **YOU MUST STRICTLY FOLLOW THIS OUTPUT FORMAT. FAILURE TO DO SO WILL RESULT IN REJECTION.** 🚨
 
-            Here is the message that you need to consider
+                #### **Correct Format:**
+                A valid Python list of strings, like this:
 
-            {current_user_message}
-
-            When you receive a message, you perform a sequence of steps consisting of:
-
-            1. Analyze the most recent Human message for new information. You will see multiple messages for context, but we are only looking for new information in the most recent message.  
-            2. Extract new information and return new memories from this information. We can have multiple pieces of information so we can also get multiple memories. 
-
-            I will tip you $20 if you are perfect, and I will fine you $40 if you miss any important information.
-
-            Take a deep breath, think step by step and in the end simply return a list of new information extracted under the title "Memory Extractor Result:" Be concrete with your final result.
-            List out all the memories as a json array in the format 
+                ```python
                 [
-                    "memory" : ...,
-                    "memory" : ...,
-                    ...
+                    "Likes action movies",
+                    "Dislikes horror",
+                    "Favorite movie is Inception",
+                    "Watches mostly on Netflix",
+                    "Prefers witty and sarcastic characters"
                 ]
-            """,
+                ```
+
+                Incorrect Formats (DO NOT USE THESE):
+                Do not use dashes, bullets, or extra characters:
+                - "Likes action movies"
+                - "Dislikes horror"
+
+                FINAL WARNING: ONLY return a valid Python list of strings and nothing else. Any deviation from this format is an error. Even if you are repairing a message,
+                the response should only return a valid Python list of strings without any extra labels, dashes, attributes, or helpful message. Remember this.
+         """,
         )
 
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessagePromptTemplate.from_template(self.system_prompt_initial),
-                MessagesPlaceholder(variable_name="current_user_message"),
+                MessagesPlaceholder(
+                    variable_name="current_user_message"
+                ),  # Holds the latest user message
+                MessagesPlaceholder(
+                    variable_name="repair_message", optional=True
+                ),  # Holds the repair message if present
+                MessagesPlaceholder(
+                    variable_name="memories_to_repair", optional=True
+                ),  # Holds extracted memories if repair mode is active
             ]
         )
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
         self.memory_extractor_runnable = self.prompt | self.llm_runnable
 
     def format_memories(self, response: str, state: AgentState) -> List[Memory]:
-
-        # Use regex to extract JSON content
-        match = re.search(r"\[\s*{.*}\s*\]", response, re.DOTALL)
+        # Extract the part inside brackets using regex (handling newlines properly)
+        match = re.search(r"\[\s*([\s\S]*?)\s*\]", response)
 
         if not match:
-            # raise ValueError("No valid JSON found in response")
-            return []
+            return []  # Return empty list if no valid list is found
 
-        json_string = match.group(0).strip()
+        memories_string = match.group(0).strip()  # Extract matched text
 
         try:
-            json_memories_object = json.loads(json_string)
-        except json.JSONDecodeError as e:
-            # raise ValueError("Failed to parse JSON") from e
-            return []
+            # Clean the string to ensure proper parsing
+            cleaned_memories_string = memories_string.replace("\n", "").strip()
 
-        memories = []
+            # Use ast.literal_eval to safely parse the list
+            memories_list = ast.literal_eval(cleaned_memories_string)
 
-        for obj in json_memories_object:
-            information = obj["memory"]
-            memories.append(Memory.create(information=information, state=state))
+            # Ensure it's a valid list of strings, stripping extra spaces
+            if not isinstance(memories_list, list) or not all(
+                isinstance(mem, str) for mem in memories_list
+            ):
+                return []
 
-        return memories
+            # Convert extracted memories into Memory objects, trimming whitespace
+            return [
+                Memory.create(information=mem.strip(), state=state)
+                for mem in memories_list
+            ]
+
+        except (SyntaxError, ValueError) as e:
+            logging.error(
+                f"Memory parsing error: {e}"
+            )  # Optional logging for debugging
+            return []  # Return empty list if parsing fails
 
     def process(self, state: AgentState) -> AgentState:
 
+        messages = {
+            "current_user_message": [state.current_user_message.to_langchain_message()]
+        }
+
+        if (
+            state.needs_repair
+            and state.extracted_memories
+            and state.repair_message is not None
+        ):
+            messages["repair_message"] = [state.repair_message.to_langchain_message()]
+            messages["memories_to_repair"] = [
+                AIMessage(
+                    content=json.dumps(
+                        [memory.information for memory in state.extracted_memories]
+                    )
+                )
+            ]
+
         # Run the pipeline and get the response
         response = utils.remove_think_tags(
-            self.memory_extractor_runnable.invoke(
-                {
-                    "current_user_message": [
-                        state.current_user_message.to_langchain_message()
-                    ]
-                }
-            )
+            self.memory_extractor_runnable.invoke(messages)
         )
         response = response.split("Memory Extractor Result:", 1)[-1].strip()
 
         memories = self.format_memories(response, state)
+
+        if not memories:
+            # Attempt to run the pipeline again just to make sure it's not a parsing error
+            response = utils.remove_think_tags(
+                self.memory_extractor_runnable.invoke(messages)
+            )
+            response = response.split("Memory Extractor Result:", 1)[-1].strip()
+
+            memories = self.format_memories(response, state)
 
         # Log the extracted response
         logging.info(f"Memory Extractor response: {response}")

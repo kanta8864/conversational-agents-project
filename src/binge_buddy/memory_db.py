@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -64,3 +65,46 @@ class MemoryDB:
     def close(self):
         """Close the database connection."""
         self.client.close()
+
+
+if __name__ == "__main__":
+    db = MemoryDB()
+
+    # Collection name
+    collection_name = "test_collection"
+
+    # Sample document
+    test_document = {
+        "user_id": "12345",
+        "attribute": "LIKES",
+        "memory": "Loves sci-fi movies",
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    # Insert the document
+    insert_result = db.insert_one(collection_name, test_document)
+    print(f"Inserted document ID: {insert_result.inserted_id}")
+
+    # Retrieve the document
+    query = {"user_id": "12345"}
+    retrieved_doc = db.find_one(collection_name, query)
+    print(f"Retrieved document: {retrieved_doc}")
+
+    # Update the document
+    update_data = {"memory": "Loves sci-fi and fantasy movies"}
+    db.update_one(collection_name, query, update_data)
+
+    # Retrieve the updated document
+    updated_doc = db.find_one(collection_name, query)
+    print(f"Updated document: {updated_doc}")
+
+    # Delete the document
+    db.delete_one(collection_name, query)
+    print("Deleted the document.")
+
+    # Verify deletion
+    deleted_doc = db.find_one(collection_name, query)
+    print(f"Document after deletion: {deleted_doc}")
+
+    # Close DB connection
+    db.close()

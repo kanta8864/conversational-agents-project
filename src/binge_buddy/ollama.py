@@ -6,6 +6,7 @@ from langchain.schema import PromptValue  # Import ChatPromptValue
 class OllamaLLM(LLM):  # Inherit from the LLM base class
     # model: str = "llama2:7b"  # Default model
     model: str = "deepseek-r1:8b"  # Default model
+    # model: str = "llama3-gradient:8b"
     temperature: float = 0.0  # Default temperature
 
     def _call(self, prompt: str, **kwargs) -> str:

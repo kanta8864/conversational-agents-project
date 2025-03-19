@@ -1,3 +1,5 @@
+import logging
+
 from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
@@ -9,6 +11,11 @@ from binge_buddy import utils
 from binge_buddy.agent_state.states import AgentState, AgentStateDict
 from binge_buddy.agents.base_agent import BaseAgent
 from binge_buddy.ollama import OllamaLLM
+
+# Configure logging (if not already configured elsewhere)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class MemorySentinel(BaseAgent):
@@ -54,7 +61,14 @@ class MemorySentinel(BaseAgent):
             1. Analyze the message for information.
             2. If it has any information worth recording, return TRUE. If not, return FALSE.
             
-            You should ONLY RESPOND WITH TRUE OR FALSE. Absolutely no other information should be provided.
+            You should ONLY RESPOND WITH TRUE OR FALSE. Absolutely no other information should be provided. Response should only contain one word.
+             ### **Response Rules:**  
+             If the message contains **any** of the above details → Respond **TRUE**  
+             If the message contains **none** of the above → Respond **FALSE**  
+
+            ### **IMPORTANT**:  
+             **Even one relevant fact counts as TRUE.**  
+             **Do NOT explain your answer, just respond with TRUE or FALSE.**  
             """,
         )
 
@@ -79,7 +93,10 @@ class MemorySentinel(BaseAgent):
                 [state.current_user_message.to_langchain_message()]
             )
         )
+
         # Return True/False based on the response
-        state.contains_information = response == "TRUE"
+        state.contains_information = response.lower() == "true"
+
+        logging.info(f"Sentinel Response: {response}")
 
         return state

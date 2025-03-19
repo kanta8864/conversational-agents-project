@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import List, Optional, TypedDict
 
-from binge_buddy.memory import Memory, MemoryDict
+from binge_buddy.memory import Memory, MemoryDict, SemanticMemory
 from binge_buddy.message import Message, MessageDict, UserMessage
 
 
@@ -12,7 +12,7 @@ class AgentStateDict(TypedDict, total=False):  # total=False makes all fields op
     contains_information: Optional[bool]
     extracted_memories: Optional[List[MemoryDict]]
     needs_repair: Optional[bool]
-    repair_message: Optional[str]
+    repair_message: Optional[Message]
 
 
 class AgentState(ABC):
@@ -25,7 +25,7 @@ class AgentState(ABC):
         contains_information: Optional[bool] = None,
         extracted_memories: Optional[List[Memory]] = None,
         needs_repair: Optional[bool] = None,
-        repair_message: Optional[str] = None,
+        repair_message: Optional[Message] = None,
     ):
         self.user_id = user_id
         self.existing_memories = existing_memories
@@ -49,7 +49,7 @@ class AgentState(ABC):
                 else None
             ),
             "needs_repair": self.needs_repair,
-            "repair_message": self.repair_message,
+            "repair_message": self.repair_message.as_dict(),
         }
 
     @classmethod
@@ -75,6 +75,8 @@ class SemanticAgentStateDict(AgentStateDict):
 
 
 class SemanticAgentState(AgentState):
+    aggregated_memories: Optional[List[Memory]] = None
+
     def __init__(
         self,
         user_id: str,
@@ -97,4 +99,23 @@ class SemanticAgentState(AgentState):
             if self.aggregated_memories
             else None
         )
+        return base_dict
+
+
+class EpisodicAgentState(AgentState):
+    def __init__(
+        self,
+        user_id: str,
+        existing_memories: List[Memory],
+        current_user_message: UserMessage,
+    ):
+        super().__init__(
+            user_id=user_id,
+            existing_memories=existing_memories,
+            current_user_message=current_user_message,
+            state_type="episodic",
+        )
+
+    def as_dict(self) -> AgentStateDict:
+        base_dict = super().as_dict()
         return base_dict

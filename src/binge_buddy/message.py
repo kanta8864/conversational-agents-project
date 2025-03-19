@@ -24,11 +24,7 @@ class Message(BaseMessage):
     type: str
 
     def to_langchain_message(self) -> Union[HumanMessage, AIMessage]:
-        if self.role == "user":
-            return HumanMessage(content=self.content)
-        elif self.role == "agent":
-            return AIMessage(content=self.content)
-        raise ValueError("Invalid message role")
+        raise NotImplementedError("Not implemented")
 
     @staticmethod
     def from_langchain_message(
@@ -86,8 +82,25 @@ class UserMessage(Message):
     role: str = "user"
     type: str = "human"
 
+    def to_langchain_message(self) -> Union[HumanMessage, AIMessage]:
+        return HumanMessage(content=self.content)
+
     def __repr__(self):
         return f"UserMessage(user_id={self.user_id}, session_id={self.session_id}, content={self.content})"
 
     def __str__(self):
         return f"UserMessage(role:{self.role}, content:{self.content})"
+
+
+class AgentMessage(Message):
+    role: str = "agent"
+    type: str = "agent"
+
+    def to_langchain_message(self) -> Union[HumanMessage, AIMessage]:
+        return AIMessage(content=self.content)
+
+    def __repr__(self):
+        return f"AgentMessage(user_id={self.user_id}, session_id={self.session_id}, content={self.content})"
+
+    def __str__(self):
+        return f"AgentMessage(role:{self.role}, content:{self.content})"
