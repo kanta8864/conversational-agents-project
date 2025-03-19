@@ -64,14 +64,13 @@ class MemoryAggregator(BaseAgent):
                 ]
                 Important Rules:
 
-                If existing memories are empty, return extracted memories as is.
-                Each attribute appears only once in the final list.
-                Information is merged meaningfully into a single "information" field per attribute.
-                No extra formatting, explanations, or bullet points—just a valid Python list of dictionaries.
-                Your goal is to return only the correctly formatted aggregated list. Any deviation from this will be considered incorrect.
-                Even if you are repairing a message, the response should only be in the described format. No extra test or helpful message. Remember this.
-
-                Do not respond with any solution code, I only want the response in the output format described. Only in that format.
+                - If existing memories are empty, return extracted memories as is.
+                - Each attribute appears only once in the final list.
+                - Information is merged meaningfully into a single "information" field per attribute.
+                - No extra formatting, explanations, or bullet points—just a valid Python list of dictionaries.
+                - Your goal is to return only the correctly formatted aggregated list. Any deviation from this will be considered incorrect.
+                - Even if you are repairing a message, the response should only be in the described format. No extra test or helpful message. Remember this.
+                - Do not respond with any solution code, I only want the response in the output format described. Only in that format.
 
                 ### **Correct Output Format**
                 Your response must strictly follow this format:
