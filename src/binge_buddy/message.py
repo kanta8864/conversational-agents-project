@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional, TypedDict, Union
+from typing import TypedDict, Union
 
-from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain.schema import AIMessage, BaseMessage, HumanMessage
 from pydantic import Field
 
 

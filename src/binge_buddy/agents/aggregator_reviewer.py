@@ -189,7 +189,7 @@ class AggregatorReviewer(BaseAgent):
                 session_id=state.current_user_message.session_id,
             )
 
-        logging.info(f"Aggregator Reviewer Response: {parsed_output["status"]}")
-        logging.info(f"Aggregator Reviewer Reasoning: {parsed_output["message"]}")
-        
+        logging.info(f"Aggregator Reviewer Response: {parsed_output['status']}")
+        logging.info(f"Aggregator Reviewer Reasoning: {parsed_output['message']}")
+
         return state

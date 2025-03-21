@@ -16,7 +16,7 @@ from binge_buddy.state_graph import CustomStateGraph
 
 
 class SemanticWorkflow(MultiAgentWorkflow):
-    def __init__(self, memory_db):
+    def __init__(self, memory_handler):
         super().__init__()
 
         # todo: change this to use global llm
@@ -28,7 +28,7 @@ class SemanticWorkflow(MultiAgentWorkflow):
         memory_aggregator = MemoryAggregator(llm)
         aggregator_reviewer = AggregatorReviewer(llm)
 
-        memory_handler = SemanticMemoryHandler(memory_db)
+        memory_handler = memory_handler
 
         # Initialize a new graph
         self.state_graph: CustomStateGraph = CustomStateGraph(SemanticAgentState)

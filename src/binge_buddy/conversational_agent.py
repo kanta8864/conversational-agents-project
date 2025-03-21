@@ -1,8 +1,10 @@
+import json
+from typing import List, Optional
 from binge_buddy import utils
+from binge_buddy.memory import Memory
 from binge_buddy.memory_db import MemoryDB
-from binge_buddy.message.human_message import HumanMessage
-from binge_buddy.message.message import Message
-from binge_buddy.message.system_message import SystemMessage
+from binge_buddy.memory_handler import MemoryHandler
+from binge_buddy.message import AgentMessage, Message
 from binge_buddy.message_log import MessageLog
 from binge_buddy.ollama import OllamaLLM
 from langchain.prompts import (
@@ -11,10 +13,15 @@ from langchain.prompts import (
     SystemMessagePromptTemplate,
 )
 from langchain_core.runnables import RunnableLambda
+from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
 
 class ConversationalAgent:
-    def __init__(self, llm: OllamaLLM, message_log: MessageLog, memory_db: MemoryDB):
+    memories: Optional[List[Memory]] = None
+
+    def __init__(
+        self, llm: OllamaLLM, message_log: MessageLog, memory_handler: MemoryHandler
+    ):
         """
         Initializes the BingeBuddy conversational agent.
 
@@ -23,8 +30,7 @@ class ConversationalAgent:
         """
         self.llm = llm
         self.message_log = message_log
-        self.memory_db = memory_db
-
+        self.memory_handler = memory_handler
         # System prompt for the memory sentinel to decide whether to store information
         self.system_prompt_initial = """
             You are a conversational movie and TV show recommendation assistant "Binge Buddy". Your goal is to provide users with natural, engaging, and concise recommendations based on their preferences. Keep responses friendly and to the point—avoid long-winded explanations.
@@ -41,15 +47,22 @@ class ConversationalAgent:
             Message Logs for context:
             {message_logs}
 
+            Exisiting memory:
+            {memories}
+
             Current message to respond to (Only write respond to this message):
-            {messages}
+            {message}
+
+            
 
             Your goal is to make discovering movies and shows fun and effortless! Do not ask too many questions and suggest movies where possible.
         """
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessagePromptTemplate.from_template(self.system_prompt_initial),
-                MessagesPlaceholder(variable_name="messages"),
+                MessagesPlaceholder(variable_name="message"),
+                MessagesPlaceholder(variable_name="memories"),
+                MessagesPlaceholder(variable_name="message_logs"),
             ]
         )
         self.llm_runnable = RunnableLambda(lambda x: self.llm._call(x))
@@ -60,43 +73,58 @@ class ConversationalAgent:
         """
         Analyzes the current message and provide a response.
         """
+        existing_memories = self.memory_handler.get_existing_memories(message.user_id)
+        print(existing_memories)
+        if existing_memories:
+            memories = [
+                AIMessage(
+                    content=json.dumps(
+                        [memory.as_dict() for memory in existing_memories]
+                    )
+                )
+            ]
+
+        else:
+            memories = []
+
         # Run the pipeline and get the response
         response = utils.remove_think_tags(
             self.conversational_agent_runnable.invoke(
                 {
-                    "messages": [message.to_langchain_message()],
+                    "message": [message.to_langchain_message()],
                     "message_logs": list(
                         map(
                             lambda message: message.to_langchain_message(),
                             self.message_log,
                         )
                     ),
+                    "memories": memories,
                 }
             )
         )
-        user_message = HumanMessage(
-            content=message.content, user_id="user", session_id="session"
-        )
-        self.message_log.add_message(user_message)
+        self.message_log.add_message(message)
 
-        agent_message = SystemMessage(
+        agent_message = AgentMessage(
             content=response, user_id="user", session_id="session"
         )
         self.message_log.add_message(agent_message)
         return response
-    
+
     def add_user_message(self, message: Message):
-        self.message_log.add_message(message)  
+        self.message_log.add_message(message)
 
     def fetch_user_memories(self, user_id: str):
-        return self.memoryDB.get_memories(user_id) 
+        return self.memoryDB.get_memories(user_id)
+
 
 if __name__ == "__main__":
     # Initialize the message log and LLM (for now, using a mock LLM)
     llm = OllamaLLM()
     message_log = MessageLog("user", "session")
     memory_db = MemoryDB()
-    semantic_agent = ConversationalAgent(llm=llm, message_log=message_log, memory_db=memory_db)
+    semantic_agent = ConversationalAgent(
+        llm=llm, message_log=message_log, memory_db=memory_db
+    )
 
     # Test message
     current_message = Message(

@@ -1,19 +1,33 @@
+import time
+import os
+from binge_buddy.conversational_agent_manager import ConversationalAgentManager
 from binge_buddy.memory_db import MemoryDB
+from binge_buddy.memory_handler import EpisodicMemoryHandler, SemanticMemoryHandler
+from binge_buddy.perception.audito_transcriber import AudioTranscriber
 from binge_buddy.perception.sentiment_analyzer import SentimentAnalyzer
 from flask import Flask, request, jsonify, render_template
-from threading import Thread
 from binge_buddy.message_log import MessageLog
 from binge_buddy.ollama import OllamaLLM
 
 
-
 # Set up the Flask app
 app = Flask(__name__)
-# Initialize global agent and message log (persistent across requests)
 llm = OllamaLLM()
-sentiment_analyzer = SentimentAnalyzer(llm)
-message_log = MessageLog(user_id="user", session_id="session")
+sentiment_analyzer = SentimentAnalyzer()
 memory_db = MemoryDB()
+mode = "semantic"
+if mode == "semantic":
+    memory_handler = SemanticMemoryHandler(memory_db)
+else:
+    memory_handler = EpisodicMemoryHandler(memory_db)
+message_log = MessageLog(
+    user_id="user", session_id="session", memory_handler=memory_handler, mode=mode
+)
+conversational_agent_manager = ConversationalAgentManager(
+    llm, message_log, memory_handler
+)
+audio_transcriber = AudioTranscriber()
+
 
 sample_memory = {
     "user_id": "kanta_001",
@@ -27,6 +41,7 @@ sample_memory = {
     "last_updated": "2024-03-09T12:00:00Z",
 }
 
+
 @app.route("/")
 def index():
     return render_template("front_end.html")
@@ -39,27 +54,34 @@ def handle_user_message():
         user_message = data["text"]
         print(f"User message received: {user_message}")
         # todo: update userID and sessionID
-        response = sentiment_analyzer.extract_emotion(user_message, "userId", "sessionId")
+        message = sentiment_analyzer.extract_emotion(
+            user_message, "userId", "sessionId"
+        )
+        ca = conversational_agent_manager.get_agent("userId", "sessionId")
+        response = ca.process_message(message)
         return jsonify({"response": response})
 
 
-# @app.route("/upload", methods=["POST"])
-# def upload_audio():
-#     if "audio" not in request.files:
-#         return "No audio file uploaded", 400
+@app.route("/upload", methods=["POST"])
+def upload_audio():
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file uploaded"}), 400
 
-#     audio_file = request.files["audio"]
-#     filename = audio_file.filename
-#     file_path = os.path.join("./audio", filename)
+    audio_file = request.files["audio"]
 
-#     # Save the audio file to disk
-#     audio_file.save(file_path)
+    os.makedirs("./audio", exist_ok=True)
 
-#     # Transcribe the audio file to text
-#     transcribed_text = agent.transcribe(file_path)
+    filename = f"{int(time.time())}_{audio_file.filename}"
+    file_path = os.path.join("./audio", filename)
 
-#     # Immediately return the transcribed text to the frontend
-#     return jsonify({"transcribed_text": transcribed_text})
+    # Save the audio file to disk
+    audio_file.save(file_path)
+
+    transcribed_text = audio_transcriber.transcribe(file_path)
+
+    os.remove(file_path)
+
+    return jsonify({"transcribed_text": transcribed_text})
 
 
 def run_flask():

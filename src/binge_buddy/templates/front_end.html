@@ -133,10 +133,6 @@
         <h3>You can either send a message through text or voice note</h3>
         <button id="recordBtn" class="record-btn">🎤</button>
         <div class="audio-container" id="audioContainer"></div>
-        <div class="input-container">
-            <label for="fileName">Enter a name for your audio file:</label>
-            <input type="text" id="fileName" placeholder="My Audio File">
-        </div>
         <button id="uploadBtn" class="upload-btn" style="display:none;">Upload
             Audio</button>
         <div class="chat-container">
@@ -195,9 +191,8 @@
 
         document.getElementById("uploadBtn").addEventListener("click", async function() {
             document.getElementById("uploadBtn").disabled = true;
-            const fileName = document.getElementById("fileName").value || "recorded_audio"; // Default name if not provided
             const formData = new FormData();
-            formData.append("audio", recordedAudioBlob, `${fileName}.wav`);
+            formData.append("audio", recordedAudioBlob);
 
             document.getElementById("processingIndicator").style.display = "block";
             document.getElementById("uploadBtn").disabled = true; 

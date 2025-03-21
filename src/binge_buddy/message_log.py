@@ -1,35 +1,52 @@
 from typing import Callable, Iterator, List, Optional
-from binge_buddy.agent_state.agent_state import AgentState
-from binge_buddy.agent_state.semantic_agent_state import SemanticAgentState
+from binge_buddy.agent_state.states import (
+    AgentState,
+    EpisodicAgentState,
+    SemanticAgentState,
+)
 from binge_buddy.memory_workflow.semantic_workflow import SemanticWorkflow
-from binge_buddy.message.human_message import HumanMessage
-from .message.message import Message
 import threading
+from langchain.schema import HumanMessage
+from binge_buddy.message import Message, UserMessage
 
 
 class MessageLog:
-    def __init__(self,user_id,session_id):
+    def __init__(self, user_id, session_id, memory_handler, mode):
         self.user_id = user_id
         self.session_id = session_id
-        self.messages: List[Message] = [] 
+        self.messages: List[Message] = []
         self.subscribers: List[Callable[[AgentState], None]] = []
+        self.memory_handler = memory_handler
+        self.mode = mode
         # todo: please please fix this. my brain did not work.
-        workflow = SemanticWorkflow()
+        workflow = SemanticWorkflow(memory_handler)
         self.subscribe(workflow.run)
 
     def add_message(self, message: Message):
         self.messages.append(message)
-        if(isinstance(message, HumanMessage)):
+        if isinstance(message, UserMessage):
             self.notify_subscribers(message)
 
     def subscribe(self, callback: Callable[[Message], None]):
         self.subscribers.append(callback)
 
-    def notify_subscribers(self, message: HumanMessage):
+    def notify_subscribers(self, message: UserMessage):
         print("notifying subscribers")
         for subscriber in self.subscribers:
-            # todo: change this
-            state = SemanticAgentState(user_id=message.user_id, memories=[], current_user_message=message)
+            memories = self.memory_handler.get_existing_memories(message.user_id)
+            if self.mode == "semantic":
+                state = SemanticAgentState(
+                    user_id=message.user_id,
+                    existing_memories=memories,
+                    current_user_message=message,
+                )
+            else:
+                state = EpisodicAgentState(
+                    user_id=message.user_id,
+                    existing_memories=memories,
+                    current_user_message=message,
+                )
+
             thread = threading.Thread(target=subscriber, args=(state,))
             thread.start()
 
